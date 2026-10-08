@@ -67,3 +67,15 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+@"
+.vs/
+Debug/
+Release/
+x64/
+x86/
+*.user
+*.pdb
+*.ilk
+*.ipch
+"@ | Set-Content .gitignore
