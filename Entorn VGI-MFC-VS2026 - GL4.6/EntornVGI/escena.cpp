@@ -1165,3 +1165,4 @@ void Cabina(GLint shaderId, glm::mat4 MatriuTG, bool sw_mat[5])
 	//glPopMatrix();
 }
 // FI OBJECTE TIE: FETS PER ALUMNES -----------------------------------------------------------------
+
