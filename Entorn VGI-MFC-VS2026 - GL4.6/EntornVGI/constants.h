@@ -33,6 +33,7 @@
 #define CILINDRE 'y'
 #define CUB 'c'
 #define BILLAR 'b' // definim el billar
+#define TAC_BILLAR 't' // definim el tac de billar
 #define CUB_RGB 'd'
 #define C_BEZIER '2'
 #define C_LEMNISCATA 'K'

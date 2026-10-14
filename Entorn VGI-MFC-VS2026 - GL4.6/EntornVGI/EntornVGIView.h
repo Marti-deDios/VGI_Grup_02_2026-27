@@ -391,6 +391,7 @@ public:
 	afx_msg void OnObjecteCub();
 
 	afx_msg void OnObjecteBillar();
+	afx_msg void OnObjecteTacBillar();
 
 	afx_msg void OnUpdateObjecteCub(CCmdUI* pCmdUI);
 	afx_msg void OnObjecteCubRGB();

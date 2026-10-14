@@ -110,6 +110,7 @@ BEGIN_MESSAGE_MAP(CEntornVGIView, CView)
 	ON_UPDATE_COMMAND_UI(ID_OBJECTE_CUB, &CEntornVGIView::OnUpdateObjecteCub)
 
 	ON_COMMAND(ID_OBJECTE_BILLAR, &CEntornVGIView::OnObjecteBillar)
+	ON_COMMAND(ID_OBJECTE_TACBILLAR, &CEntornVGIView::OnObjecteTacBillar)
 
 	ON_COMMAND(ID_OBJECTE_CUB_RGB, &CEntornVGIView::OnObjecteCubRGB)
 	ON_UPDATE_COMMAND_UI(ID_OBJECTE_CUB_RGB, &CEntornVGIView::OnUpdateObjecteCubRGB)
@@ -6499,6 +6500,29 @@ void CEntornVGIView::OnObjecteBillar()
 
 	Set_VAOList(GLUT_CUBE, loadglutSolidCube_EBO(1.0));
 	Set_VAOList(GLU_SPHERE, loadgluSphere_EBO(0.2, 30, 30));
+
+	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
+
+	InvalidateRect(NULL, false);
+}
+
+void CEntornVGIView::OnObjecteTacBillar()
+{
+	objecte = TAC_BILLAR; // mateix nom definit a constants.h
+
+	// Ajustos de renderitzat
+	ilumina = SUAU;
+	test_vis = false;
+	oculta = true;
+
+	wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
+
+	netejaVAOList();
+
+	SetColor4d(col_obj.r, col_obj.g, col_obj.b, col_obj.a);
+
+	// Carreguem la primitiva necessària
+	Set_VAOList(GLUT_CUBE, loadglutSolidCube_EBO(1.0));
 
 	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
 
