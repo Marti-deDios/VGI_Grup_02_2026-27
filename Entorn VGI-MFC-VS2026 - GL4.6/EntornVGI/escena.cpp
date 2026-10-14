@@ -433,7 +433,8 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG)
 			&ModelMatrix[0][0]
 		);
 
-		gluSphere(0.2, 20, 20);
+		// substituim gluSphere(0.2, 20, 20);
+		draw_TriEBO_Object(GLU_SPHERE);
 	}
 		break;
 

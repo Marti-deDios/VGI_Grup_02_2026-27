@@ -6486,6 +6486,11 @@ void CEntornVGIView::OnObjecteBillar()
 {
 	objecte = BILLAR;
 
+	//per fer que el tauler surti sòlid automàticament
+	ilumina = SUAU;
+	test_vis = false;
+	oculta = true;
+
 	wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
 
 	netejaVAOList();
