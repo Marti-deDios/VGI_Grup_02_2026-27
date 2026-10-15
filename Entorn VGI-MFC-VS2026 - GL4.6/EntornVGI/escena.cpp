@@ -408,6 +408,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		draw_TriEBO_Object(GLUT_CUBE);	//draw_TriVAO_Object(GLUT_CUBE);  //glutSolidCube(1.0);
 		break;
 
+		// Billar
 	case BILLAR:
 	{
 		// 1. Dibuixar el tapete de la mesa de billar (SENSE textura)
@@ -426,12 +427,13 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		float escalaBola = 0.55f;
 		float alturaTapetZ = 0.25f;
 
-		// 2. ACTIVAR TEXTURES PER A LES BOLES CORRECTAMENT
+		// ACTIVAR TEXTURES PER A LES BOLES
 		glActiveTexture(GL_TEXTURE0);
 		glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_TRUE);
+		glUniform1i(glGetUniformLocation(sh_programID, "texturaActiva"), 1);
 		glUniform1i(glGetUniformLocation(sh_programID, "modulate"), GL_TRUE);
 
-		// Bola Blanca
+		// 2. Definició de la Bola Blanca (Cue Ball)
 		{
 			CColor blanc;
 			blanc.r = 1.0f; blanc.g = 1.0f; blanc.b = 1.0f; blanc.a = 1.0f;
@@ -440,14 +442,24 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			glBindTexture(GL_TEXTURE_2D, texturesBoles[0]);
 
 			glm::mat4 ModelMatrixBola = glm::translate(MatriuTG, vec3(-3.0f, 0.0f, alturaTapetZ));
+			// Rotació de 90 graus (girat cap a l'altre costat)
+			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(90.0f), vec3(0.0f, 0.0f, 1.0f));
+			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(180.0f), vec3(1.0f, 0.0f, 0.0f));
 			ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
 
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
 			draw_TriEBO_Object(GLU_SPHERE);
 		}
 
-		// Resta de boles (1 al 15) amb color base blanc per evitar el negre
-		int ordenRack[15] = { 1, 10, 3, 5, 8, 12, 11, 7, 13, 6, 2, 14, 9, 4, 15 };
+		// 3. Col·locació de les 15 boles de color
+		int ordenRack[15] = {
+			 1,         // Fila 1: Ápice (Bola 1)
+			11,  3,     // Fila 2
+			 5,  8, 12, // Fila 3: Centro (Bola 8)
+			 6,  7, 13,  9, // Fila 4
+			 2, 14,  4, 15, 10  // Fila 5: Esquinas y centro
+		};
+
 		float startX = 2.6f;
 		float startY = 0.0f;
 		float dX = escalaBola * 0.4f;
@@ -463,12 +475,15 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 				int numBola = ordenRack[index++];
 
 				CColor col;
-				col.r = 1.0f; col.g = 1.0f; col.b = 1.0f; col.a = 1.0f; // Blanc per mostrar la textura de la imatge
+				col.r = 1.0f; col.g = 1.0f; col.b = 1.0f; col.a = 1.0f;
 				SeleccionaColorMaterial(sh_programID, col, materialBola);
 
 				glBindTexture(GL_TEXTURE_2D, texturesBoles[numBola]);
 
 				glm::mat4 ModelMatrixBola = glm::translate(MatriuTG, vec3(posX, posY, alturaTapetZ));
+				// Rotació de 90 graus per fer mirar les boles cap a l'altre costat
+				ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(90.0f), vec3(0.0f, 0.0f, 1.0f));
+				ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(180.0f), vec3(1.0f, 0.0f, 0.0f));
 				ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
 
 				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
@@ -477,6 +492,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		}
 
 		glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_FALSE);
+		glUniform1i(glGetUniformLocation(sh_programID, "texturaActiva"), 0);
 	} break;
 
 	case CUB_RGB:
