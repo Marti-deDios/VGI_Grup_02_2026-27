@@ -396,162 +396,97 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG)
 		draw_TriEBO_Object(GLUT_CUBE);	//draw_TriVAO_Object(GLUT_CUBE);  //glutSolidCube(1.0);
 		break;
 		
-//Billar
+		// Billar
 	case BILLAR:
-{
-	//base verda
-	CColor verd;
-	verd.r = 0.0;
-	verd.g = 0.6;
-	verd.b = 0.15;
-	verd.a = 1.0;
+	{
+		// 1. Dibuixar el tapete de la mesa de billar
+		CColor verd;
+		verd.r = 0.0; verd.g = 0.6; verd.b = 0.15; verd.a = 1.0;
+		bool materialTapet[5] = { false, true, true, false, true };
+		SeleccionaColorMaterial(sh_programID, verd, materialTapet);
 
-	bool materialTapet[5] = { false, true, true, false, true };
+		ModelMatrix = glm::scale(MatriuTG, vec3(10.0f, 5.0f, 0.3f));
+		glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+		draw_TriEBO_Object(GLUT_CUBE);
 
-	SeleccionaColorMaterial(sh_programID, verd, materialTapet);
-}
+		bool materialBola[5] = { false, true, true, true, true };
 
-	ModelMatrix = glm::scale(MatriuTG, vec3(10.0f, 5.0f, 0.3f));
+		// Paràmetres dimensionals: altura corregida perquè reposin exactament sobre el tapete sense flotar
+		float escalaBola = 0.32f;        // Radi proporcional de la bola
+		float alturaTapetZ = 0.21f;      // Alçada exacta al ras de la superfície superior del tapete
 
-	glUniformMatrix4fv(
-		glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]
-	);
+		// 2. Definició de la Bola Blanca (Cue Ball) en posició de saqué
+		{
+			CColor blanc = { 1.0f, 1.0f, 1.0f, 1.0f };
+			SeleccionaColorMaterial(sh_programID, blanc, materialBola);
 
-	draw_TriEBO_Object(GLUT_CUBE);
+			glm::mat4 ModelMatrixBola = glm::translate(MatriuTG, vec3(-3.0f, 0.0f, alturaTapetZ));
+			ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
 
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
+			draw_TriEBO_Object(GLU_SPHERE);
+		}
 
-	//aqui definim el marc 
-{
-	CColor fusta;
-	fusta.r = 0.4;
-	fusta.g = 0.2;
-	fusta.b = 0.07;
-	fusta.a = 1.0;
+		// 3. Col·locació de les 15 boles de color en Triángulo (Rack oficial de 15 boles)
+		int ordenRack[15] = {
+			 1,         // Fila 1 (Vèrtex: Groga lisa)
+			10,  3,     // Fila 2 (Blau rayada, Vermella lisa)
+			 5,  8, 12, // Fila 3 (Taronja lisa, Negra al centre, Blau marí rayada)
+			11,  7, 13,  6, // Fila 4 (Vermell clar rayada, Marró lisa, Taronja clar rayada, Verda fosca lisa)
+			 2, 14,  9,  4, 15  // Fila 5 (Base: Blava lisa, Marró rayada, Groga rayada, Violeta lisa, Marró fosc rayada)
+		};
 
-	bool materialMarc[5] = { false, true, true, false, true };
+		float startX = 2.0f;
+		float startY = 0.0f;
 
-	SeleccionaColorMaterial(sh_programID, fusta, materialMarc);
+		// Distàncies de separació mil·límetrica perquè es toquin just de vora a vora
+		float dX = escalaBola * 0.95f * 1.732f;
+		float dY = escalaBola * 0.97f;
 
-	// Banda superior
-	ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, 2.7f, 0.15f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(10.8f, 0.4f, 0.6f));
+		int index = 0;
+		for (int fila = 0; fila < 5; ++fila) {
+			float posX = startX + (fila * dX);
+			float posYIni = startY + (fila * (escalaBola * 0.5f));
 
-	glUniformMatrix4fv(
-		glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]
-	);
-	draw_TriEBO_Object(GLUT_CUBE);
+			for (int b = 0; b <= fila; ++b) {
+				float posY = posYIni - (b * (escalaBola * 0.97f));
+				int numBola = ordenRack[index++];
 
-	// Banda inferior
-	ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, -2.7f, 0.15f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(10.8f, 0.4f, 0.6f));
+				CColor col;
+				bool esRayada = (numBola >= 9 && numBola <= 15);
 
-	glUniformMatrix4fv(
-		glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]
-	);
-	draw_TriEBO_Object(GLUT_CUBE);
+				// Assignació de colors oficials
+				switch (numBola) {
+				case 1:  col = { 1.00, 0.85, 0.00, 1.0 }; break; // Groc
+				case 2:  col = { 0.00, 0.20, 0.80, 1.0 }; break; // Blau
+				case 3:  col = { 0.85, 0.10, 0.10, 1.0 }; break; // Vermell
+				case 4:  col = { 0.50, 0.00, 0.50, 1.0 }; break; // Violeta
+				case 5:  col = { 1.00, 0.50, 0.00, 1.0 }; break; // Taronja
+				case 6:  col = { 0.00, 0.55, 0.20, 1.0 }; break; // Verd
+				case 7:  col = { 0.45, 0.20, 0.10, 1.0 }; break; // Marró
+				case 8:  col = { 0.10, 0.10, 0.10, 1.0 }; break; // Negre
+				case 9:  col = { 1.00, 0.95, 0.40, 1.0 }; break; // Groc clar rayat
+				case 10: col = { 0.30, 0.60, 1.00, 1.0 }; break; // Blau clar rayat
+				case 11: col = { 1.00, 0.40, 0.40, 1.0 }; break; // Vermell clar rayat
+				case 12: col = { 0.80, 0.40, 0.80, 1.0 }; break; // Violeta clar rayat
+				case 13: col = { 1.00, 0.75, 0.30, 1.0 }; break; // Taronja clar rayat
+				case 14: col = { 0.40, 0.80, 0.40, 1.0 }; break; // Verd clar rayat
+				case 15: col = { 0.70, 0.50, 0.30, 1.0 }; break; // Marró clar rayat
+				default: col = { 1.00, 1.00, 1.00, 1.0 }; break;
+				}
 
-	// Banda esquerra
-	ModelMatrix = glm::translate(MatriuTG, vec3(-5.2f, 0.0f, 0.15f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(0.4f, 5.0f, 0.6f));
+				SeleccionaColorMaterial(sh_programID, col, materialBola);
 
-	glUniformMatrix4fv(
-		glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]
-	);
-	draw_TriEBO_Object(GLUT_CUBE);
+				// Posicionament abaixat al ras del tapete
+				glm::mat4 ModelMatrixBola = glm::translate(MatriuTG, vec3(posX, posY, alturaTapetZ));
+				ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
 
-	// Banda dreta
-	ModelMatrix = glm::translate(MatriuTG, vec3(5.2f, 0.0f, 0.15f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(0.4f, 5.0f, 0.6f));
-
-	glUniformMatrix4fv(
-		glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]
-	);
-	draw_TriEBO_Object(GLUT_CUBE);
-}
-
-
-	//aqui definim els forats
-{
-	CColor negre;
-	negre.r = 0.0;
-	negre.g = 0.0;
-	negre.b = 0.0;
-	negre.a = 1.0;
-
-	bool materialForat[5] = { false, true, true, false, true };
-
-	SeleccionaColorMaterial(sh_programID, negre, materialForat);
-
-	// Forat cantonada superior esquerra
-	ModelMatrix = glm::translate(MatriuTG, vec3(-4.8f, 2.3f, 0.32f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(0.6f, 0.6f, 0.15f));
-	glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]);
-	draw_TriEBO_Object(GLU_SPHERE);
-
-	// Forat cantonada superior dreta
-	ModelMatrix = glm::translate(MatriuTG, vec3(4.8f, 2.3f, 0.32f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(0.6f, 0.6f, 0.15f));
-	glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]);
-	draw_TriEBO_Object(GLU_SPHERE);
-
-	// Forat cantonada inferior esquerra
-	ModelMatrix = glm::translate(MatriuTG, vec3(-4.8f, -2.3f, 0.32f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(0.6f, 0.6f, 0.15f));
-	glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]);
-	draw_TriEBO_Object(GLU_SPHERE);
-
-	// Forat cantonada inferior dreta
-	ModelMatrix = glm::translate(MatriuTG, vec3(4.8f, -2.3f, 0.32f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(0.6f, 0.6f, 0.15f));
-	glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]);
-	draw_TriEBO_Object(GLU_SPHERE);
-
-	// Forat central superior
-	ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, 2.3f, 0.32f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(0.6f, 0.6f, 0.15f));
-	glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]);
-	draw_TriEBO_Object(GLU_SPHERE);
-
-	// Forat central inferior
-	ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, -2.3f, 0.32f));
-	ModelMatrix = glm::scale(ModelMatrix, vec3(0.6f, 0.6f, 0.15f));
-	glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]);
-	draw_TriEBO_Object(GLU_SPHERE);
-}
-
-
-//bola blanca al centre de la taula
-{
-	CColor blanc;
-	blanc.r = 1.0;
-	blanc.g = 1.0;
-	blanc.b = 1.0;
-	blanc.a = 1.0;
-
-	bool materialBola[5] = { false, true, true, true, true };
-	SeleccionaColorMaterial(sh_programID, blanc, materialBola);
-
-	ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, 0.0f, 0.35f));
-
-	glUniformMatrix4fv(
-		glGetUniformLocation(sh_programID, "modelMatrix"),
-		1, GL_FALSE, &ModelMatrix[0][0]
-	);
-
-	draw_TriEBO_Object(GLU_SPHERE);
-}
-break;
+				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
+				draw_TriEBO_Object(GLU_SPHERE);
+			}
+		}
+	}
+	break;
 
 	case CUB_RGB:
 		ModelMatrix = glm::scale(MatriuTG, vec3(5.0f, 5.0f, 5.0f));
