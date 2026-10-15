@@ -129,6 +129,7 @@ public:
 										// 1-6: Textures assignables
 										// 7: Textura pel Fractal
 										// 8-9: Lliures
+	GLuint texturesBoles[16]; // Vector de textures per a les boles del billar
 	bool tFlag_invert_Y; // Booleana que activa la inversió coordenada textura t (o Y) a 1.0-cty segons llibreria SOIL (TRUE) o no (FALSE).
 
 // Entorn VGI: Variables de control del menú LLUMS

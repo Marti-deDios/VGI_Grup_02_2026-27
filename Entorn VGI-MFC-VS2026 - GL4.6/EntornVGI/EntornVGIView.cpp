@@ -1243,7 +1243,7 @@ void CEntornVGIView::dibuixa_Escena()
 		textura, texturesID, textura_map, tFlag_invert_Y,
 		npts_T, PC_t, pas_CS, sw_Punts_Control, dibuixa_TriedreFrenet,
 		ObOBJ,				// Classe de l'objecte OBJ que conté els VAO's
-		GTMatrix);
+		GTMatrix, texturesBoles);
 }
 
 
@@ -6486,7 +6486,7 @@ void CEntornVGIView::OnObjecteBillar()
 {
 	objecte = BILLAR;
 
-	//per fer que el tauler surti sòlid automàticament
+	// Per fer que el tauler surti sòlid automàticament
 	ilumina = SUAU;
 	test_vis = false;
 	oculta = true;
@@ -6499,6 +6499,25 @@ void CEntornVGIView::OnObjecteBillar()
 
 	Set_VAOList(GLUT_CUBE, loadglutSolidCube_EBO(1.0));
 	Set_VAOList(GLU_SPHERE, loadgluSphere_EBO(0.2, 30, 30));
+
+	// --- CÀRREGA DE TEXTURES DE LES BOLES ---
+	// Carreguem les 16 textures des de la carpeta textures/ utilitzant loadIMA_SOIL
+	texturesBoles[0] = loadIMA_SOIL("textures/ball0.png"); // Bola blanca (Cue)
+	texturesBoles[1] = loadIMA_SOIL("textures/ball1.png"); // Bola 1
+	texturesBoles[2] = loadIMA_SOIL("textures/ball2.png"); // Bola 2
+	texturesBoles[3] = loadIMA_SOIL("textures/ball3.png"); // Bola 3
+	texturesBoles[4] = loadIMA_SOIL("textures/ball4.png"); // Bola 4
+	texturesBoles[5] = loadIMA_SOIL("textures/ball5.png"); // Bola 5
+	texturesBoles[6] = loadIMA_SOIL("textures/ball6.png"); // Bola 6
+	texturesBoles[7] = loadIMA_SOIL("textures/ball7.png"); // Bola 7
+	texturesBoles[8] = loadIMA_SOIL("textures/ball8.png"); // Bola 8
+	texturesBoles[9] = loadIMA_SOIL("textures/ball9.png"); // Bola 9
+	texturesBoles[10] = loadIMA_SOIL("textures/ball10.png"); // Bola 10
+	texturesBoles[11] = loadIMA_SOIL("textures/ball11.png"); // Bola 11
+	texturesBoles[12] = loadIMA_SOIL("textures/ball12.png"); // Bola 12
+	texturesBoles[13] = loadIMA_SOIL("textures/ball13.png"); // Bola 13
+	texturesBoles[14] = loadIMA_SOIL("textures/ball14.png"); // Bola 14
+	texturesBoles[15] = loadIMA_SOIL("textures/ball15.png"); // Bola 15
 
 	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
 
