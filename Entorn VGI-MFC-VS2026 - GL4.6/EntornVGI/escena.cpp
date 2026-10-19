@@ -17,7 +17,8 @@
 #include "escena.h"
 
 // Prototip previ de dibuixa perqu� pugui rebre l'array de textures
-void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16]);
+void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
+	GLuint texturesBoles[16], float posicioBolaBlancaX);
 
 // Dibuixa Eixos Coordenades M�n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -80,7 +81,8 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	bool textur, GLuint texturID[NUM_MAX_TEXTURES], bool textur_map, bool flagInvertY,
 	int nptsU, CPunt3D PC_u[MAX_PATCH_CORBA], GLfloat pasCS, bool sw_PC, bool dib_TFrenet,
 	COBJModel* objecteOBJ,
-	glm::mat4 MatriuTG, GLuint texturesBoles[16])
+	glm::mat4 MatriuTG, GLuint texturesBoles[16],
+	float posicioBolaBlancaX)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -380,7 +382,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		// Dibuix de la resta d'objectes
 	default:
 		SeleccionaColorMaterial(sh_programID, col_object, sw_mat);
-		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles);
+		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles, posicioBolaBlancaX);
 		break;
 	}
 
@@ -390,7 +392,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 
 
 // dibuixa: Funci� que dibuixa objectes simples de la llibreria GLUT segons obj
-void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16])
+void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16], float posicioBolaBlancaX)
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -587,7 +589,10 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 
 			glBindTexture(GL_TEXTURE_2D, texturesBoles[0]);
 
-			glm::mat4 ModelMatrixBola = glm::translate(MatriuTG, vec3(-3.0f, 0.0f, alturaTapetZ));
+			// Dibuixem la bola blanca a la seva posicio actual
+			glm::mat4 ModelMatrixBola = glm::translate(MatriuTG,
+				vec3(posicioBolaBlancaX, 0.0f, alturaTapetZ));
+
 			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(90.0f), vec3(0.0f, 0.0f, 1.0f));
 			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(180.0f), vec3(1.0f, 0.0f, 0.0f));
 			ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));

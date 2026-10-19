@@ -1243,7 +1243,7 @@ void CEntornVGIView::dibuixa_Escena()
 		textura, texturesID, textura_map, tFlag_invert_Y,
 		npts_T, PC_t, pas_CS, sw_Punts_Control, dibuixa_TriedreFrenet,
 		ObOBJ,				// Classe de l'objecte OBJ que conté els VAO's
-		GTMatrix, texturesBoles);
+		GTMatrix, texturesBoles, posicioBolaBlancaX);
 }
 
 
@@ -3768,6 +3768,45 @@ BOOL CEntornVGIView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 /* ------------------------------------------------------------------------- */
 void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 {
+	// Temporitzador del billar
+	if (nIDEvent == 5000)
+	{
+		// Si sortim del billar, parem el seu temporitzador
+		if (objecte != BILLAR)
+		{
+			KillTimer(5000);
+			return;
+		}
+
+		// Calculem el temps transcorregut en segons
+		ULONGLONG tempsActual = GetTickCount64();
+		float deltaTemps = (tempsActual - ultimTempsBillar) / 1000.0f;
+
+		ultimTempsBillar = tempsActual;
+		tempsAcumulatBillar += deltaTemps;
+
+		// Movem la bola segons el temps transcorregut
+		posicioBolaBlancaX += velocitatBolaBlancaX * deltaTemps;
+
+		// De moment, parem la bola abans que arribi a les altres
+		if (posicioBolaBlancaX >= 0.0f)
+		{
+			posicioBolaBlancaX = 0.0f;
+			velocitatBolaBlancaX = 0.0f;
+		}
+
+		// Comprovem aproximadament cada segon que funciona
+		if (tempsAcumulatBillar >= 1.0f)
+		{
+			TRACE(_T("T17: El rellotge del billar funciona!\n"));
+			tempsAcumulatBillar = 0.0f;
+		}
+
+		// Tornem a dibuixar l'escena
+		InvalidateRect(NULL, false);
+		return;
+	}
+
 // TODO: Agregue aquí su código de controlador de mensajes o llame al valor predeterminado
 	if (anima) {
 		// Codi de tractament de l'animació quan transcorren els ms. del crono.
@@ -6485,6 +6524,9 @@ std::string CEntornVGIView::CString2String(const CString& cString)
 void CEntornVGIView::OnObjecteBillar()
 {
 	objecte = BILLAR;
+	// Reiniciem la bola blanca quan entrem al billar
+	posicioBolaBlancaX = -3.0f;
+	velocitatBolaBlancaX = 1.0f;
 
 	// Per fer que el tauler surti sòlid automàticament
 	ilumina = SUAU;
@@ -6520,6 +6562,13 @@ void CEntornVGIView::OnObjecteBillar()
 	texturesBoles[15] = loadIMA_SOIL("textures/ball15.png"); // Bola 15
 
 	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
+
+	// Preparem el rellotge del billar
+	ultimTempsBillar = GetTickCount64();
+	tempsAcumulatBillar = 0.0f;
+
+	// Activem el temporitzador cada 16 mil·lisegons
+	SetTimer(5000, 16, NULL);
 
 	InvalidateRect(NULL, false);
 }

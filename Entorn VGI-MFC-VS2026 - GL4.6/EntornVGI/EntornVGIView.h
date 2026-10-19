@@ -181,7 +181,14 @@ public:
 	double t;		// Paràmetre t pel Timer.
 	bool anima;		// Booleana que controla si l'animació és activa (TRUE) o no (FALSE)
 					//    dins la funció de control del rellotge OnTimer.
+				
+	// Variables per controlar el temps del billar
+	ULONGLONG ultimTempsBillar = 0;
+	float tempsAcumulatBillar = 0.0f;
 
+	// Posicio inicial i velocitat de la bola blanca
+	float posicioBolaBlancaX = -3.0f;
+	float velocitatBolaBlancaX = 1.0f;
 
 // Entorn VGI : QUATERNIONS: Animació de cossos rígids per QUATERNIONS
 	bool animaQ;			// Booleana que controla si l'animació rígida és activa 
