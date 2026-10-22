@@ -209,13 +209,17 @@
 #define ID_SHADERS_PBINARY_READ         32881
 #define ID_SHADERS_PBINARY_WRITE        32882
 #define ID_OBJECTE_BILLAR               32883
+#define ID_C32884                       32884
+#define ID_C32885                       32885
+#define ID_CAMERA_TIR                   32886
+#define ID_CAMERA_SUPERIOR              32887
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        310
-#define _APS_NEXT_COMMAND_VALUE         32884
+#define _APS_NEXT_COMMAND_VALUE         32888
 #define _APS_NEXT_CONTROL_VALUE         1000
 #define _APS_NEXT_SYMED_VALUE           310
 #endif

@@ -1169,3 +1169,39 @@ void SetTextureParameters(GLint num, GLint IDText, bool extensT, bool filterT, b
 	}
 }
 
+glm::mat4 configuracioCamera(TipusCamera tipusCamera, float posBola[3], float angleTir, float distTir, float altitudSuperior, float centreTaula[3])
+{
+	glm::mat4 view = glm::mat4(1.0f);
+
+	if (distTir <= 0.1f) distTir = 50.0f;
+	if (altitudSuperior <= 0.1f) altitudSuperior = 150.0f;
+
+	if (tipusCamera == CAM_SUPERIOR)
+	{
+		// CÀMERA SUPERIOR: Posem l'alçada a l'eix Z (Z és l'eix vertical)
+		glm::vec3 eye(centreTaula[0], centreTaula[1], centreTaula[2] + altitudSuperior);
+		glm::vec3 center(centreTaula[0], centreTaula[1], centreTaula[2]);
+
+		// Com que mirem des de Z cap avall, la 'muntanya' en pantalla és l'eix Y
+		glm::vec3 up(0.0f, 1.0f, 0.0f);
+
+		view = glm::lookAt(eye, center, up);
+	}
+	else // CAM_TIR
+	{
+		// CÀMERA DE TIR: Rotem en el pla X-Y i elevem la càmera en l'eix Z per sobre del tapet
+		float rad = glm::radians(angleTir);
+
+		glm::vec3 eye;
+		eye.x = posBola[0] - distTir * sin(rad);
+		eye.y = posBola[1] - distTir * cos(rad);
+		eye.z = posBola[2] + 20.0f; // Unes 20 unitats per sobre la bola a l'eix Z
+
+		glm::vec3 center(posBola[0], posBola[1], posBola[2]);
+		glm::vec3 up(0.0f, 0.0f, 1.0f); // L'eix vertical és Z
+
+		view = glm::lookAt(eye, center, up);
+	}
+
+	return view;
+}

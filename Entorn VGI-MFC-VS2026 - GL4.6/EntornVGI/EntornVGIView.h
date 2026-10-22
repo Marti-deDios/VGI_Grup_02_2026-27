@@ -28,7 +28,7 @@
 
 // Entorn VGI. QUATERNIONS: Include per a la definició del tipus GL_QUAT i crida a les funcions de quatern.
 //#include "quatern.h"
-
+#include "visualitzacio.h"
 
 class CEntornVGIView : public CView
 {
@@ -39,6 +39,17 @@ protected: // Crear sólo a partir de serialización
 // Atributos
 public:
 	CEntornVGIDoc* GetDocument() const;
+
+	TipusCamera m_cameraAct;
+	float m_angleTir;
+	float m_distanciaTir;
+	float m_distanciaPerSobre;
+	float m_posBolaBlanca[3];
+	float m_centreTaula[3];
+
+	// Handlers del menú de les càmeres
+	afx_msg void OnCameraTir();
+	afx_msg void OnCameraSuperior();
 
 //-------------- Entorn VGI: Variables globals de CPractivaView
 	HGLRC	 m_hrc;		// OpenGL Rendering Context 

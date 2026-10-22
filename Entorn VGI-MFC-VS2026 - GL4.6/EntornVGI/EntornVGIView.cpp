@@ -33,6 +33,7 @@
 #include "EntornVGI.h"
 #endif
 
+#include "resource.h"
 #include "EntornVGIDoc.h"
 #include "EntornVGIView.h"
 #include "visualitzacio.h"	// Entorn VGI: Include funcions de projeció i il.luminació
@@ -67,6 +68,12 @@ BEGIN_MESSAGE_MAP(CEntornVGIView, CView)
 	ON_WM_RBUTTONDOWN()
 	ON_WM_SIZE()
 	ON_WM_TIMER()
+	//cameres
+
+	ON_COMMAND(ID_CAMERA_TIR, &CEntornVGIView::OnCameraTir)
+	ON_COMMAND(ID_CAMERA_SUPERIOR, &CEntornVGIView::OnCameraSuperior)
+
+
 	ON_COMMAND(ID_CAMERA_ESFERICA, &CEntornVGIView::OnCameraEsferica)
 	ON_UPDATE_COMMAND_UI(ID_CAMERA_ESFERICA, &CEntornVGIView::OnUpdateCameraEsferica)
 	ON_COMMAND(ID_CAMERA_MOBIL, &CEntornVGIView::OnCameraMobil)
@@ -226,6 +233,22 @@ BEGIN_MESSAGE_MAP(CEntornVGIView, CView)
 CEntornVGIView::CEntornVGIView() noexcept
 {
 // TODO: agregar aquí el código de construcción
+
+	m_cameraAct = CAM_SUPERIOR;
+	m_angleTir = 0.0f;
+	m_distanciaTir = 20.0f;
+	m_distanciaPerSobre = 25.0f;
+
+	m_posBolaBlanca[0] = 0.0f;
+	m_posBolaBlanca[1] = 0.0f;
+	m_posBolaBlanca[2] = 0.0f;
+
+	m_centreTaula[0] = 0.0f;
+	m_centreTaula[1] = 0.0f;
+	m_centreTaula[2] = 0.0f;
+
+	projeccio = PERSPECT;
+	objecte = BILLAR;
 
 // -------- Entorn VGI: Inicialització de les variables globals de CEntornVGIView --------------
 	
@@ -1127,7 +1150,7 @@ void CEntornVGIView::OnPaint()
 		// Intercanvia l'escena al front de la pantalla
 		SwapBuffers(m_pDC->GetSafeHdc());
 		break;
-
+/*
 	case PERSPECT:
 		// PROJECCIÓ PERSPECTIVA
 				//glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST); // Set Perspective Calculations To Most Accurate
@@ -1173,7 +1196,34 @@ void CEntornVGIView::OnPaint()
 		// Intercanvia l'escena al front de la pantalla
 		SwapBuffers(m_pDC->GetSafeHdc());
 		break;
+	*/
 
+	case PERSPECT:
+		// 1. Projecció i neteja d'entorn per defecte d'EntornVGI
+		ProjectionMatrix = Projeccio_Perspectiva(shader_programID, 0, 0, w, h, OPV.R);
+		ViewMatrix = Vista_Esferica(shader_programID, OPV, Vis_Polar, pan, tr_cpv, tr_cpvF, c_fons, col_obj, objecte, mida, pas,
+			front_faces, oculta, test_vis,
+			ilumina, llum_ambient, llumGL, ifixe, ilum2sides,
+			eixos, grid, hgrid);
+
+		// 2. Sobreescriptura de la ViewMatrix amb la càmera de billar
+		ViewMatrix = configuracioCamera(m_cameraAct,
+			m_posBolaBlanca,
+			m_angleTir,
+			m_distanciaTir,
+			m_distanciaPerSobre,
+			m_centreTaula);
+
+		// 3. Enviament de la nova matriu al shader
+		glUseProgram(shader_programID);
+		glUniformMatrix4fv(glGetUniformLocation(shader_programID, "viewMatrix"), 1, GL_FALSE, &ViewMatrix[0][0]);
+
+		// 4. Renderitzat
+		configura_Escena();
+		dibuixa_Escena();
+
+		SwapBuffers(m_pDC->GetSafeHdc());
+		break;
 	default:
 		// Càrrega SHADERS
 		// Càrrega Shader Eixos
@@ -6571,4 +6621,16 @@ void CEntornVGIView::OnObjecteBillar()
 	SetTimer(5000, 16, NULL);
 
 	InvalidateRect(NULL, false);
+}
+
+void CEntornVGIView::OnCameraTir()
+{
+	m_cameraAct = CAM_TIR;
+	Invalidate(FALSE);
+}
+
+void CEntornVGIView::OnCameraSuperior()
+{
+	m_cameraAct = CAM_SUPERIOR;
+	Invalidate(FALSE);
 }

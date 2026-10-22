@@ -11,6 +11,12 @@
 /*                                Funcions                                   */
 /* ------------------------------------------------------------------------- */
 
+// Tipus de càmera per al joc de billar
+enum TipusCamera { CAM_TIR, CAM_SUPERIOR };
+
+// Funció per calcular la matriu de la càmera (ViewMatrix)
+glm::mat4 configuracioCamera(TipusCamera tipusCamera, float posBola[3], float angleTir, float distTir, float altitudSuperior, float centreTaula[3]);
+
 // Entorn VGI: Il.luminació
 void Iluminacio(GLint sh_programID, char ilumin, bool ifix, bool ilu2sides, bool ll_amb, LLUM* lumin,
 	char obj, bool frnt_fcs, int step);
