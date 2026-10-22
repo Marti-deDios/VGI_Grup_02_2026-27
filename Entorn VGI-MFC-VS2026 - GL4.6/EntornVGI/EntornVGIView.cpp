@@ -6508,23 +6508,22 @@ void CEntornVGIView::OnObjecteBillar()
 
 void CEntornVGIView::OnObjecteTacBillar()
 {
-	objecte = TAC_BILLAR; // mateix nom definit a constants.h
-
-	// Ajustos de renderitzat
+	objecte = TAC_BILLAR;
 	ilumina = SUAU;
 	test_vis = false;
 	oculta = true;
 
 	wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
 
-	netejaVAOList();
+	// 1. Instanciar l'objecte si no existeix
+	if (ObOBJ == NULL) ObOBJ = new COBJModel();
 
-	SetColor4d(col_obj.r, col_obj.g, col_obj.b, col_obj.a);
+	// 2. Netejar VAOs/Textures anteriors si cal
+	ObOBJ->netejaVAOList_OBJ();
 
-	// Carreguem la primitiva necessària
-	Set_VAOList(GLUT_CUBE, loadglutSolidCube_EBO(1.0));
+	// 3. Carregar el fitxer .obj
+	ObOBJ->LoadModel("objectes/tacBillar.obj");
 
 	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
-
 	InvalidateRect(NULL, false);
 }

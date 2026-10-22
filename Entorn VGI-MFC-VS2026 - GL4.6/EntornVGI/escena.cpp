@@ -366,54 +366,23 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 
 	case TAC_BILLAR:
 	{
-		// cos principal del tac (de fusta)
-		CColor fusta;
-		fusta.r = 0.55;
-		fusta.g = 0.35;
-		fusta.b = 0.15;
-		fusta.a = 1.0;
-		bool materialTac[5] = { false, true, true, false, true };
-		SeleccionaColorMaterial(sh_programID, fusta, materialTac);
+		glPushMatrix();
+		glEnable(GL_MULTISAMPLE);
+		glEnable(GL_LINE_SMOOTH);
+		glEnable(GL_POLYGON_SMOOTH);
+		glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+		glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
 
-		ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, 0.0f, 0.0f));
-		ModelMatrix = glm::scale(ModelMatrix, vec3(8.0f, 0.15f, 0.15f));
-		glUniformMatrix4fv(
-			glGetUniformLocation(sh_programID, "modelMatrix"),
-			1, GL_FALSE, &ModelMatrix[0][0]
-		);
-		draw_TriEBO_Object(GLUT_CUBE);
+		// Aplica les transformacions que necessiti el teu model 
+		// (Ajusta la posició, rotació i escala si el tac es veu massa gran/petit o desplaçat)
+		glTranslatef(0.0f, 0.0f, 0.0f);
+		glRotatef(0.0f, 0.0f, 1.0f, 0.0f);
+		glScalef(1.0f, 1.0f, 1.0f);
 
-		// empunyadura
-		CColor empunyadura;
-		empunyadura.r = 0.1;
-		empunyadura.g = 0.1;
-		empunyadura.b = 0.1;
-		empunyadura.a = 1.0;
-		SeleccionaColorMaterial(sh_programID, empunyadura, materialTac);
+		// DIBUIXEM L'OBJECTE OBJ CARREGAT
+		objecteOBJ->draw_TriVAO_OBJ(sh_programID);
 
-		ModelMatrix = glm::translate(MatriuTG, vec3(-3.0f, 0.0f, 0.0f));
-		ModelMatrix = glm::scale(ModelMatrix, vec3(2.0f, 0.18f, 0.18f));
-		glUniformMatrix4fv(
-			glGetUniformLocation(sh_programID, "modelMatrix"),
-			1, GL_FALSE, &ModelMatrix[0][0]
-		);
-		draw_TriEBO_Object(GLUT_CUBE);
-
-		// la punta del tac
-		CColor punta;
-		punta.r = 1.0;
-		punta.g = 1.0;
-		punta.b = 1.0;
-		punta.a = 1.0;
-		SeleccionaColorMaterial(sh_programID, punta, materialTac);
-
-		ModelMatrix = glm::translate(MatriuTG, vec3(4.05f, 0.0f, 0.0f));
-		ModelMatrix = glm::scale(ModelMatrix, vec3(0.1f, 0.14f, 0.14f));
-		glUniformMatrix4fv(
-			glGetUniformLocation(sh_programID, "modelMatrix"),
-			1, GL_FALSE, &ModelMatrix[0][0]
-		);
-		draw_TriEBO_Object(GLUT_CUBE);
+		glPopMatrix();
 		break;
 	}
 

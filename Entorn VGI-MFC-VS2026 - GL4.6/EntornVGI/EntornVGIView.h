@@ -22,6 +22,7 @@
 #include <glm/ext.hpp>
 
 #include "shader.h"
+#include "objLoader.h"
 
 // Entorn VGI: OBJECTE OBJ. Include per la definició de l'objecte Obj_OBJ
 #include "objLoader.h"
