@@ -463,7 +463,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 
 		// 2.2. Coixins verds interiors amb tall en angle (Bisel cap al forat)
 		CColor verdCoixi;
-		verdCoixi.r = 0.0f; verdCoixi.g = 0.5f; verdCoixi.b = 0.12f; verdCoixi.a = 1.0f; // Verd una mica més fosc
+		verdCoixi.r = 0.0f; verdCoixi.g = 0.5f; verdCoixi.b = 0.12f; verdCoixi.a = 1.0f;
 		SeleccionaColorMaterial(sh_programID, verdCoixi, materialTapet);
 
 		// Coixins llargs
@@ -496,11 +496,11 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
-		// 2.3. Cantonades i proteccions metàl·liques (ajustades per tancar bé els laterals)
-		CColor plata;
-		plata.r = 0.82f; plata.g = 0.82f; plata.b = 0.82f; plata.a = 1.0f;
+		// 2.3. Cantonades i proteccions metàl·liques (en color gris RGB personalitzable)
+		CColor grisEsquines;
+		grisEsquines.r = 0.5f; grisEsquines.g = 0.5f; grisEsquines.b = 0.5f; grisEsquines.a = 1.0f; // RGB de gris (pots modificar aquests tres números entre 0.0f i 1.0f)
 		bool materialMetal[5] = { false, true, true, true, true };
-		SeleccionaColorMaterial(sh_programID, plata, materialMetal);
+		SeleccionaColorMaterial(sh_programID, grisEsquines, materialMetal);
 
 		// Peces metàl·liques en L per a les 4 cantonades exteriors
 		float extX[4] = { -4.95f,  4.95f, -4.95f,  4.95f };
@@ -533,25 +533,57 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
-		// 2.4. Els 6 forats negres (ben alineats amb les noves mides)
-		CColor negre;
-		negre.r = 0.02f; negre.g = 0.02f; negre.b = 0.02f; negre.a = 1.0f;
-		SeleccionaColorMaterial(sh_programID, negre, materialTapet);
+		
+		// 2.4. Els 6 forats negres (Mida reduïda i vores suaus sense pics laterals)
+		{
+			CColor negreTronera;
+			negreTronera.r = 0.0f; negreTronera.g = 0.0f; negreTronera.b = 0.0f; negreTronera.a = 1.0f;
+			bool materialForat[5] = { false, true, true, false, true };
+			SeleccionaColorMaterial(sh_programID, negreTronera, materialForat);
 
-		glm::vec3 posForats[6] = {
-			glm::vec3(-4.85f,  2.4f, 0.16f), // Cantonada Superior Esquerra
-			glm::vec3(4.85f,  2.4f, 0.16f), // Cantonada Superior Dreta
-			glm::vec3(-4.85f, -2.4f, 0.16f), // Cantonada Inferior Esquerra
-			glm::vec3(4.85f, -2.4f, 0.16f), // Cantonada Inferior Dreta
-			glm::vec3(0.0f,   2.55f, 0.16f), // Centre Superior (ajustat a la nova posició)
-			glm::vec3(0.0f,  -2.55f, 0.16f)  // Centre Inferior (ajustat a la nova posició)
-		};
+			float zForat = 0.18f;      // Lligerament per sobre del tapet verd
+			float gruixForat = 0.04f;  // Gruix pla
 
-		for (int i = 0; i < 6; i++) {
-			ModelMatrix = glm::translate(MatriuTG, posForats[i]);
-			ModelMatrix = glm::scale(ModelMatrix, vec3(0.52f, 0.52f, 0.03f));
-			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
-			draw_TriEBO_Object(GLUT_SPHERE);
+			// A. 4 TRONERES DE LES CANTONADES (Més compactes i sense cantonades sortints)
+			float sigX[4] = { -1.0f,  1.0f, -1.0f,  1.0f };
+			float sigY[4] = { 1.0f,  1.0f, -1.0f, -1.0f };
+
+			for (int i = 0; i < 4; i++) {
+				// 1. Fons recte superior/inferior (recollit dins del marge per no fer pics)
+				ModelMatrix = glm::translate(MatriuTG, vec3(sigX[i] * 4.76f, sigY[i] * 2.42f, zForat));
+				ModelMatrix = glm::scale(ModelMatrix, vec3(0.48f, 0.16f, gruixForat));
+				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+				draw_TriEBO_Object(GLUT_CUBE);
+
+				// 2. Fons recte lateral (recollit contra la paret grisa exterior)
+				ModelMatrix = glm::translate(MatriuTG, vec3(sigX[i] * 4.92f, sigY[i] * 2.26f, zForat));
+				ModelMatrix = glm::scale(ModelMatrix, vec3(0.16f, 0.48f, gruixForat));
+				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+				draw_TriEBO_Object(GLUT_CUBE);
+
+				// 3. Boca circular reduïda (escala 1.14f en lloc de 1.28f) amb contorn net
+				ModelMatrix = glm::translate(MatriuTG, vec3(sigX[i] * 4.72f, sigY[i] * 2.22f, zForat));
+				ModelMatrix = glm::scale(ModelMatrix, vec3(1.14f, 1.14f, gruixForat));
+				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+				draw_TriEBO_Object(GLU_SPHERE);
+			}
+
+			// B. 2 TRONERES LATERALS CENTRALS (Unió tangent sense esglaons laterals)
+			float sigCentY[2] = { 1.0f, -1.0f };
+
+			for (int i = 0; i < 2; i++) {
+				// 1. Fons rectangular d'amplada idèntica al diàmetre de l'esfera (0.78f)
+				ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, sigCentY[i] * 2.51f, zForat));
+				ModelMatrix = glm::scale(ModelMatrix, vec3(0.78f, 0.34f, gruixForat));
+				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+				draw_TriEBO_Object(GLUT_CUBE);
+
+				// 2. Semicercle reduït (escala 1.56f = diàmetre 0.78f) centrat just a la vora del rectangle
+				ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, sigCentY[i] * 2.34f, zForat));
+				ModelMatrix = glm::scale(ModelMatrix, vec3(1.56f, 1.40f, gruixForat));
+				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+				draw_TriEBO_Object(GLU_SPHERE);
+			}
 		}
 
 		// 3. Les 4 potes de la taula
