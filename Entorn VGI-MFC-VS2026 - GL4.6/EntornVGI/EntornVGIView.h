@@ -186,9 +186,17 @@ public:
 	ULONGLONG ultimTempsBillar = 0;
 	float tempsAcumulatBillar = 0.0f;
 
-	// Posicio inicial i velocitat de la bola blanca
+
+	// Posicio i velocitat de la bola blanca
 	float posicioBolaBlancaX = -3.0f;
+	float posicioBolaBlancaY = 0.0f;
+
 	float velocitatBolaBlancaX = 1.0f;
+	float velocitatBolaBlancaY = 0.5f;
+
+	// Control de la deteccio de les bandes
+	bool alertaBandaDetectada = false;
+
 
 // Entorn VGI : QUATERNIONS: Animació de cossos rígids per QUATERNIONS
 	bool animaQ;			// Booleana que controla si l'animació rígida és activa 
