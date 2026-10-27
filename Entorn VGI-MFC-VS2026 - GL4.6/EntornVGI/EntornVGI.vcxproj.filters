@@ -33,9 +33,6 @@
     <ClInclude Include="EntornVGIDoc.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
-    <ClInclude Include="EntornVGIView.h">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
     <ClInclude Include="Resource.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
@@ -75,6 +72,9 @@
     <ClInclude Include="glut_geometry.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\..\Downloads\VGI_Grup_02_2026-27\Entorn VGI-MFC-VS2026 - GL4.6\EntornVGI\EntornVGIView.h">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EntornVGI.cpp">
@@ -87,9 +87,6 @@
       <Filter>Archivos de origen</Filter>
     </ClCompile>
     <ClCompile Include="EntornVGIDoc.cpp">
-      <Filter>Archivos de origen</Filter>
-    </ClCompile>
-    <ClCompile Include="EntornVGIView.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
     <ClCompile Include="FileView.cpp">
@@ -113,9 +110,6 @@
     <ClCompile Include="objLoader.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
-    <ClCompile Include="escena.cpp">
-      <Filter>Archivos de origen</Filter>
-    </ClCompile>
     <ClCompile Include="visualitzacio.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
@@ -126,6 +120,12 @@
       <Filter>Archivos de origen</Filter>
     </ClCompile>
     <ClCompile Include="glut_geometry.cpp">
+      <Filter>Archivos de origen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\Downloads\VGI_Grup_02_2026-27\Entorn VGI-MFC-VS2026 - GL4.6\EntornVGI\EntornVGIView.cpp">
+      <Filter>Archivos de origen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\Downloads\VGI_Grup_02_2026-27\Entorn VGI-MFC-VS2026 - GL4.6\EntornVGI\escena.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
   </ItemGroup>

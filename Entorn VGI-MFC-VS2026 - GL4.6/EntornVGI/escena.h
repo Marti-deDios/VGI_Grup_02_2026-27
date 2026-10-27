@@ -24,11 +24,11 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	int nptsU, CPunt3D PC_u[MAX_PATCH_CORBA], GLfloat pasCS, bool sw_PC, bool dib_TFrenet,
 	COBJModel* objecteOBJ,
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
-	float posicioBolaBlancaX);
+	float posicioBolaBlancaX, float posicioBolaBlancaY);
 
 // Entorn VGI: dibuixa -> Funció que dibuixa objectes simples de la llibreria GLUT segons obj
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
-	GLuint texturesBoles[16], float posicioBolaBlancaX);
+	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY);
 
 // Entorn VGI: Objecte Arc
 void arc(GLuint sh_programID, glm::mat4 MatriuTG, bool sw_mat[5]);
