@@ -1,12 +1,12 @@
-//******** PRACTICA VISUALITZACIÓ GRÀFICA INTERACTIVA (Escola Enginyeria - UAB)
-//******** Entorn bàsic VS2026 MULTIFINESTRA amb OpenGL 4.6, interfície MFC i llibreries GLM
-//******** Ferran Poveda, Marc Vivet, Carme Julià, Débora Gil, Enric Martí Gòdia (Setembre 2026)
+//******** PRACTICA VISUALITZACIï¿½ GRï¿½FICA INTERACTIVA (Escola Enginyeria - UAB)
+//******** Entorn bï¿½sic VS2026 MULTIFINESTRA amb OpenGL 4.6, interfï¿½cie MFC i llibreries GLM
+//******** Ferran Poveda, Marc Vivet, Carme Juliï¿½, Dï¿½bora Gil, Enric Martï¿½ Gï¿½dia (Setembre 2026)
 // escena.h : interface de escena.cpp
 
 #ifndef GLSOURCE_H
 #define GLSOURCE_H
 
-// Entorn VGI: OBJECTE OBJ. Include per la definició de l'objecte Obj_OBJ
+// Entorn VGI: OBJECTE OBJ. Include per la definiciï¿½ de l'objecte Obj_OBJ
 #include "objLoader.h"	
 
 /* ------------------------------------------------------------------------- *
@@ -26,7 +26,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY);
 
-// Entorn VGI: dibuixa -> Funció que dibuixa objectes simples de la llibreria GLUT segons obj
+// Entorn VGI: dibuixa -> Funciï¿½ que dibuixa objectes simples de la llibreria GLUT segons obj
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY);
 
@@ -43,5 +43,7 @@ void Motor(GLint shaderId, glm::mat4 MatriuTG, bool sw_mat[5]);
 void Canon(GLint shaderId, glm::mat4 MatriuTG, bool sw_mat[5]);
 void Cuerpo(GLint shaderId, glm::mat4 MatriuTG, bool sw_mat[5]);
 void Cabina(GLint shaderId, glm::mat4 MatriuTG, bool sw_mat[5]);
+
+void actualitzaFisicaBoles(float dt);
 
 #endif

@@ -122,10 +122,10 @@
     <ClCompile Include="glut_geometry.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\..\Downloads\VGI_Grup_02_2026-27\Entorn VGI-MFC-VS2026 - GL4.6\EntornVGI\EntornVGIView.cpp">
+    <ClCompile Include="EntornVGIView.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\..\Downloads\VGI_Grup_02_2026-27\Entorn VGI-MFC-VS2026 - GL4.6\EntornVGI\escena.cpp">
+    <ClCompile Include="escena.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
   </ItemGroup>

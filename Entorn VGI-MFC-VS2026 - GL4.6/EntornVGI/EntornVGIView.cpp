@@ -1243,7 +1243,7 @@ void CEntornVGIView::dibuixa_Escena()
 		textura, texturesID, textura_map, tFlag_invert_Y,
 		npts_T, PC_t, pas_CS, sw_Punts_Control, dibuixa_TriedreFrenet,
 		ObOBJ,				// Classe de l'objecte OBJ que conté els VAO's
-		GTMatrix, texturesBoles, posicioBolaBlancaX);
+		GTMatrix, texturesBoles, posicioBolaBlancaX, posicioBolaBlancaY);
 }
 
 
@@ -3788,12 +3788,15 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		// Movem la bola segons el temps transcorregut
 		posicioBolaBlancaX += velocitatBolaBlancaX * deltaTemps;
 
-		// De moment, parem la bola abans que arribi a les altres
-		if (posicioBolaBlancaX >= 0.0f)
+		// Quan colpeja el triangle, frenem la bola blanca
+		if (posicioBolaBlancaX >= 2.35f)
 		{
-			posicioBolaBlancaX = 0.0f;
+			posicioBolaBlancaX = 2.35f;
 			velocitatBolaBlancaX = 0.0f;
 		}
+
+		// Actualitzem el moviment de les 15 boles dispersades
+		actualitzaFisicaBoles(deltaTemps);
 
 		// Comprovem aproximadament cada segon que funciona
 		if (tempsAcumulatBillar >= 1.0f)

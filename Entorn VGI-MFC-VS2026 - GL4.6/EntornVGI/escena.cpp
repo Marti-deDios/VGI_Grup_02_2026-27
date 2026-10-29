@@ -75,6 +75,100 @@ void dibuixa_Skybox(GLuint sk_programID, GLuint cmTexture, char eix_Polar, glm::
 }
 
 
+
+// --- GESTIÓ DEL MOVIMENT I DISPERSIÓ DE LES 16 BOLES ---
+struct BolaBillarSim {
+	glm::vec2 pos;
+	glm::vec2 vel;
+	int idTextura;
+	bool activa;
+};
+
+static BolaBillarSim bolesTaula[16];
+static bool triangleInicialitzat = false;
+static bool xocProduit = false;
+
+void inicialitzaTriangleBoles()
+{
+	float escalaBola = 0.55f;
+	int ordenRack[15] = {
+		 1,          // Fila 1
+		11,  3,      // Fila 2
+		 5,  8, 12,  // Fila 3
+		 6,  7, 13,  9, // Fila 4
+		 2, 14,  4, 15, 10  // Fila 5
+	};
+
+	float startX = 2.6f;
+	float startY = 0.0f;
+	float dX = escalaBola * 0.4f;
+	float dY = escalaBola * 0.5f;
+
+	int idx = 0;
+	int bolaIdx = 1;
+
+	for (int fila = 0; fila < 5; ++fila) {
+		float posX = startX + (fila * dX);
+		float posYIni = startY + (fila * (dY * 0.5f));
+
+		for (int b = 0; b <= fila; ++b) {
+			float posY = posYIni - (b * dY);
+
+			bolesTaula[bolaIdx].pos = glm::vec2(posX, posY);
+			bolesTaula[bolaIdx].vel = glm::vec2(0.0f, 0.0f); // Comencen quietes fins a l'impacte
+			bolesTaula[bolaIdx].idTextura = ordenRack[idx++];
+			bolesTaula[bolaIdx].activa = true;
+
+			bolaIdx++;
+		}
+	}
+	triangleInicialitzat = true;
+	xocProduit = false;
+}
+
+void actualitzaFisicaBoles(float dt)
+{
+	if (!xocProduit) return;
+
+	const float radi = 0.55f * 0.5f;
+	const float limitXMin = -4.92f + 0.16f + radi;
+	const float limitXMax = 4.92f - 0.16f - radi;
+	const float limitYMin = -2.42f + 0.16f + radi;
+	const float limitYMax = 2.42f - 0.16f - radi;
+	const float friccio = 0.988f;
+
+	for (int i = 1; i < 16; i++) {
+		if (!bolesTaula[i].activa) continue;
+
+		bolesTaula[i].pos += bolesTaula[i].vel * dt;
+		bolesTaula[i].vel *= friccio;
+
+		if (glm::length(bolesTaula[i].vel) < 0.02f) {
+			bolesTaula[i].vel = glm::vec2(0.0f, 0.0f);
+		}
+
+		// Rebots a les bandes X
+		if (bolesTaula[i].pos.x < limitXMin) {
+			bolesTaula[i].pos.x = limitXMin;
+			bolesTaula[i].vel.x = -bolesTaula[i].vel.x;
+		}
+		else if (bolesTaula[i].pos.x > limitXMax) {
+			bolesTaula[i].pos.x = limitXMax;
+			bolesTaula[i].vel.x = -bolesTaula[i].vel.x;
+		}
+
+		// Rebots a les bandes Y
+		if (bolesTaula[i].pos.y < limitYMin) {
+			bolesTaula[i].pos.y = limitYMin;
+			bolesTaula[i].vel.y = -bolesTaula[i].vel.y;
+		}
+		else if (bolesTaula[i].pos.y > limitYMax) {
+			bolesTaula[i].pos.y = limitYMax;
+			bolesTaula[i].vel.y = -bolesTaula[i].vel.y;
+		}
+	}
+}
+
 // dibuixa_EscenaGL: Dibuix de l'escena amb comandes GL
 void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa, char objecte,
 	CColor col_object, bool sw_mat[5],
@@ -82,7 +176,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	int nptsU, CPunt3D PC_u[MAX_PATCH_CORBA], GLfloat pasCS, bool sw_PC, bool dib_TFrenet,
 	COBJModel* objecteOBJ,
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
-	float posicioBolaBlancaX)
+	float posicioBolaBlancaX, float posicioBolaBlancaY)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -391,6 +485,8 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 }
 
 
+
+
 // dibuixa: Funci� que dibuixa objectes simples de la llibreria GLUT segons obj
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16], float posicioBolaBlancaX)
 {
@@ -425,7 +521,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 		draw_TriEBO_Object(GLUT_CUBE);
 
-		// 1.5. Calaix / Base inferior de la taula (lleugerament més gran per tapar qualsevol escletxa)
+		// 1.5. Calaix / Base inferior de la taula
 		CColor fustaBase;
 		fustaBase.r = 0.35f; fustaBase.g = 0.17f; fustaBase.b = 0.05f; fustaBase.a = 1.0f;
 		SeleccionaColorMaterial(sh_programID, fustaBase, materialTapet);
@@ -435,19 +531,18 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 		draw_TriEBO_Object(GLUT_CUBE);
 
-
 		// 2. Marc de fusta exterior (6 bandes separades)
 		CColor fusta;
 		fusta.r = 0.4f; fusta.g = 0.2f; fusta.b = 0.07f; fusta.a = 1.0f;
 		bool materialMarc[5] = { false, true, true, false, true };
 		SeleccionaColorMaterial(sh_programID, fusta, materialMarc);
 
-		// 4 Bandes llargues (Superior/Inferior, Esquerra/Dreta)
-		float posXLlargues[4] = { -2.45f,  2.45f, -2.45f,  2.45f };
-		float posYLlargues[4] = { 2.7f,   2.7f,  -2.7f,  -2.7f };
+		// 4 Bandes llargues: amplada intermèdia per deixar una obertura equilibrada
+		float posXLlargues[4] = { -2.38f, 2.38f, -2.38f, 2.38f };
+		float posYLlargues[4] = { 2.70f, 2.70f, -2.70f, -2.70f };
 		for (int i = 0; i < 4; i++) {
 			ModelMatrix = glm::translate(MatriuTG, vec3(posXLlargues[i], posYLlargues[i], 0.15f));
-			ModelMatrix = glm::scale(ModelMatrix, vec3(4.1f, 0.4f, 0.6f));
+			ModelMatrix = glm::scale(ModelMatrix, vec3(4.22f, 0.4f, 0.6f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
@@ -461,7 +556,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
-		// 2.2. Coixins verds interiors amb tall en angle (Bisel cap al forat)
+		// 2.2. Coixins verds interiors
 		CColor verdCoixi;
 		verdCoixi.r = 0.0f; verdCoixi.g = 0.5f; verdCoixi.b = 0.12f; verdCoixi.a = 1.0f;
 		SeleccionaColorMaterial(sh_programID, verdCoixi, materialTapet);
@@ -470,7 +565,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		float posYCoixiLlarg[4] = { 2.42f, 2.42f, -2.42f, -2.42f };
 		for (int i = 0; i < 4; i++) {
 			ModelMatrix = glm::translate(MatriuTG, vec3(posXLlargues[i], posYCoixiLlarg[i], 0.18f));
-			ModelMatrix = glm::scale(ModelMatrix, vec3(3.9f, 0.16f, 0.45f));
+			ModelMatrix = glm::scale(ModelMatrix, vec3(4.05f, 0.16f, 0.45f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
@@ -484,8 +579,8 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
-		// Punts bisellats dels coixins (creen l'embut verd cap als forats com a la foto real)
-		float biselX[12] = { -4.42f, -0.48f,  0.48f,  4.42f, -4.42f, -0.48f,  0.48f,  4.42f, -4.92f, -4.92f,  4.92f,  4.92f };
+		// Punts bisellats dels coixins (els centrals situats a +-0.36f per obrir el pas de manera natural)
+		float biselX[12] = { -4.42f, -0.36f,  0.36f,  4.42f, -4.42f, -0.36f,  0.36f,  4.42f, -4.92f, -4.92f,  4.92f,  4.92f };
 		float biselY[12] = { 2.42f,  2.42f,  2.42f,  2.42f, -2.42f, -2.42f, -2.42f, -2.42f,  1.92f, -1.92f,  1.92f, -1.92f };
 		float biselRot[12] = { 35.0f, -35.0f, 35.0f, -35.0f, -35.0f, 35.0f, -35.0f, 35.0f, -35.0f, 35.0f, 35.0f, -35.0f };
 		for (int i = 0; i < 12; i++) {
@@ -496,23 +591,23 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
-		// 2.3. Cantonades i proteccions metàl·liques (en color gris RGB personalitzable)
+		// 2.3. Cantonades i proteccions metàl·liques
 		CColor grisEsquines;
-		grisEsquines.r = 0.5f; grisEsquines.g = 0.5f; grisEsquines.b = 0.5f; grisEsquines.a = 1.0f; // RGB de gris (pots modificar aquests tres números entre 0.0f i 1.0f)
+		grisEsquines.r = 0.5f; grisEsquines.g = 0.5f; grisEsquines.b = 0.5f; grisEsquines.a = 1.0f;
 		bool materialMetal[5] = { false, true, true, true, true };
 		SeleccionaColorMaterial(sh_programID, grisEsquines, materialMetal);
 
 		// Peces metàl·liques en L per a les 4 cantonades exteriors
 		float extX[4] = { -4.95f,  4.95f, -4.95f,  4.95f };
-		float extY[4] = { 2.7f,   2.7f,  -2.7f,  -2.7f };
+		float extY[4] = { 2.70f,  2.70f, -2.70f, -2.70f };
 		for (int i = 0; i < 4; i++) {
 			ModelMatrix = glm::translate(MatriuTG, vec3(extX[i], extY[i], 0.15f));
 			ModelMatrix = glm::scale(ModelMatrix, vec3(0.9f, 0.4f, 0.6f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
-		float extX2[4] = { -5.2f,  5.2f, -5.2f,  5.2f };
-		float extY2[4] = { 2.25f, 2.25f, -2.25f, -2.25f };
+		float extX2[4] = { -5.20f,  5.20f, -5.20f,  5.20f };
+		float extY2[4] = { 2.25f,  2.25f, -2.25f, -2.25f };
 		for (int i = 0; i < 4; i++) {
 			ModelMatrix = glm::translate(MatriuTG, vec3(extX2[i], extY2[i], 0.15f));
 			ModelMatrix = glm::scale(ModelMatrix, vec3(0.4f, 0.5f, 0.6f));
@@ -520,67 +615,46 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
-		// 2 Peces metàl·liques per als forats centrals (A la seva posició original però en gris)
+		// 2 Peces metàl·liques per als forats centrals
 		CColor grisFosc;
 		grisFosc.r = 0.45f; grisFosc.g = 0.45f; grisFosc.b = 0.45f; grisFosc.a = 1.0f;
 		SeleccionaColorMaterial(sh_programID, grisFosc, materialMetal);
 
-		float centY[2] = { 2.8f, -2.8f }; // Posició original cap enrere
+		float centY[2] = { 2.80f, -2.80f };
 		for (int i = 0; i < 2; i++) {
 			ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, centY[i], 0.155f));
-			ModelMatrix = glm::scale(ModelMatrix, vec3(1.0f, 0.25f, 0.55f));
+			ModelMatrix = glm::scale(ModelMatrix, vec3(0.72f, 0.25f, 0.55f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
-		
-		// 2.4. Els 6 forats negres (Mida reduïda i vores suaus sense pics laterals)
+		// 2.4. Els 6 forats negres
 		{
 			CColor negreTronera;
 			negreTronera.r = 0.0f; negreTronera.g = 0.0f; negreTronera.b = 0.0f; negreTronera.a = 1.0f;
 			bool materialForat[5] = { false, true, true, false, true };
 			SeleccionaColorMaterial(sh_programID, negreTronera, materialForat);
 
-			float zForat = 0.18f;      // Lligerament per sobre del tapet verd
-			float gruixForat = 0.04f;  // Gruix pla
+			float zForat = 0.18f;
+			float gruixForat = 0.04f;
 
-			// A. 4 TRONERES DE LES CANTONADES (Més compactes i sense cantonades sortints)
+			// A. 4 TRONERES DE LES CANTONADES
 			float sigX[4] = { -1.0f,  1.0f, -1.0f,  1.0f };
 			float sigY[4] = { 1.0f,  1.0f, -1.0f, -1.0f };
 
 			for (int i = 0; i < 4; i++) {
-				// 1. Fons recte superior/inferior (recollit dins del marge per no fer pics)
-				ModelMatrix = glm::translate(MatriuTG, vec3(sigX[i] * 4.76f, sigY[i] * 2.42f, zForat));
-				ModelMatrix = glm::scale(ModelMatrix, vec3(0.48f, 0.16f, gruixForat));
-				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
-				draw_TriEBO_Object(GLUT_CUBE);
-
-				// 2. Fons recte lateral (recollit contra la paret grisa exterior)
-				ModelMatrix = glm::translate(MatriuTG, vec3(sigX[i] * 4.92f, sigY[i] * 2.26f, zForat));
-				ModelMatrix = glm::scale(ModelMatrix, vec3(0.16f, 0.48f, gruixForat));
-				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
-				draw_TriEBO_Object(GLUT_CUBE);
-
-				// 3. Boca circular reduïda (escala 1.14f en lloc de 1.28f) amb contorn net
-				ModelMatrix = glm::translate(MatriuTG, vec3(sigX[i] * 4.72f, sigY[i] * 2.22f, zForat));
-				ModelMatrix = glm::scale(ModelMatrix, vec3(1.14f, 1.14f, gruixForat));
+				ModelMatrix = glm::translate(MatriuTG, vec3(sigX[i] * 4.78f, sigY[i] * 2.28f, zForat));
+				ModelMatrix = glm::scale(ModelMatrix, vec3(1.55f, 1.55f, gruixForat));
 				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 				draw_TriEBO_Object(GLU_SPHERE);
 			}
 
-			// B. 2 TRONERES LATERALS CENTRALS (Unió tangent sense esglaons laterals)
+			// B. 2 TRONERES LATERALS CENTRALS (Ajustades en Y per no travessar la xapa grisa exterior)
 			float sigCentY[2] = { 1.0f, -1.0f };
 
 			for (int i = 0; i < 2; i++) {
-				// 1. Fons rectangular d'amplada idèntica al diàmetre de l'esfera (0.78f)
-				ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, sigCentY[i] * 2.51f, zForat));
-				ModelMatrix = glm::scale(ModelMatrix, vec3(0.78f, 0.34f, gruixForat));
-				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
-				draw_TriEBO_Object(GLUT_CUBE);
-
-				// 2. Semicercle reduït (escala 1.56f = diàmetre 0.78f) centrat just a la vora del rectangle
-				ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, sigCentY[i] * 2.34f, zForat));
-				ModelMatrix = glm::scale(ModelMatrix, vec3(1.56f, 1.40f, gruixForat));
+				ModelMatrix = glm::translate(MatriuTG, vec3(0.0f, sigCentY[i] * 2.50f, zForat));
+				ModelMatrix = glm::scale(ModelMatrix, vec3(1.85f, 1.30f, gruixForat));
 				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 				draw_TriEBO_Object(GLU_SPHERE);
 			}
@@ -613,7 +687,40 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		glUniform1i(glGetUniformLocation(sh_programID, "texturaActiva"), 1);
 		glUniform1i(glGetUniformLocation(sh_programID, "modulate"), GL_TRUE);
 
-		// 4. Definici de la Bola Blanca (Cue Ball)
+		// Comprovar si cal col·locar el triangle inicial
+		if (!triangleInicialitzat) {
+			inicialitzaTriangleBoles();
+		}
+
+		// Detecció d'impacte: quan la bola blanca dels teus companys arriba a la primera bola (X >= 2.3f)
+		if (!xocProduit && posicioBolaBlancaX >= 2.3f) {
+			xocProduit = true;
+
+			// Velocitats de dispersió per a cadascuna de les 15 boles
+			glm::vec2 velocitatsDispersio[15] = {
+				glm::vec2(2.2f,  0.4f),  // Bola 1 (vèrtex davanter)
+				glm::vec2(1.8f,  1.1f),  // Bola 11
+				glm::vec2(1.8f, -1.0f),  // Bola 3
+				glm::vec2(1.5f,  1.6f),  // Bola 5
+				glm::vec2(1.4f,  0.1f),  // Bola 8 (centre)
+				glm::vec2(1.5f, -1.5f),  // Bola 12
+				glm::vec2(1.2f,  2.1f),  // Bola 6
+				glm::vec2(1.1f,  0.7f),  // Bola 7
+				glm::vec2(1.1f, -0.8f),  // Bola 13
+				glm::vec2(1.2f, -2.0f),  // Bola 9
+				glm::vec2(0.9f,  2.4f),  // Bola 2 (fila posterior)
+				glm::vec2(0.8f,  1.3f),  // Bola 14
+				glm::vec2(0.7f,  0.0f),  // Bola 4
+				glm::vec2(0.8f, -1.2f),  // Bola 15
+				glm::vec2(0.9f, -2.3f)   // Bola 10
+			};
+
+			for (int i = 0; i < 15; i++) {
+				bolesTaula[i + 1].vel = velocitatsDispersio[i];
+			}
+		}
+
+		// 4. Dibuixar la Bola Blanca (Cue Ball) amb les variables dels companys
 		{
 			CColor blanc;
 			blanc.r = 1.0f; blanc.g = 1.0f; blanc.b = 1.0f; blanc.a = 1.0f;
@@ -621,7 +728,6 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 
 			glBindTexture(GL_TEXTURE_2D, texturesBoles[0]);
 
-			// Dibuixem la bola blanca a la seva posicio actual
 			glm::mat4 ModelMatrixBola = glm::translate(MatriuTG,
 				vec3(posicioBolaBlancaX, 0.0f, alturaTapetZ));
 
@@ -633,43 +739,25 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLU_SPHERE);
 		}
 
-		// 5. Collocaci de les 15 boles de color
-		int ordenRack[15] = {
-			 1,          // Fila 1
-			11,  3,      // Fila 2
-			 5,  8, 12,  // Fila 3
-			 6,  7, 13,  9, // Fila 4
-			 2, 14,  4, 15, 10  // Fila 5
-		};
+		// 5. Dibuixar les 15 boles de color (que es mouen si s'ha produït l'impacte)
+		for (int i = 1; i < 16; i++) {
+			if (!bolesTaula[i].activa) continue;
 
-		float startX = 2.6f;
-		float startY = 0.0f;
-		float dX = escalaBola * 0.4f;
-		float dY = escalaBola * 0.5f;
+			CColor col;
+			col.r = 1.0f; col.g = 1.0f; col.b = 1.0f; col.a = 1.0f;
+			SeleccionaColorMaterial(sh_programID, col, materialBola);
 
-		int index = 0;
-		for (int fila = 0; fila < 5; ++fila) {
-			float posX = startX + (fila * dX);
-			float posYIni = startY + (fila * (dY * 0.5f));
+			glBindTexture(GL_TEXTURE_2D, texturesBoles[bolesTaula[i].idTextura]);
 
-			for (int b = 0; b <= fila; ++b) {
-				float posY = posYIni - (b * dY);
-				int numBola = ordenRack[index++];
+			glm::mat4 ModelMatrixBola = glm::translate(MatriuTG,
+				vec3(bolesTaula[i].pos.x, bolesTaula[i].pos.y, alturaTapetZ));
 
-				CColor col;
-				col.r = 1.0f; col.g = 1.0f; col.b = 1.0f; col.a = 1.0f;
-				SeleccionaColorMaterial(sh_programID, col, materialBola);
+			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(90.0f), vec3(0.0f, 0.0f, 1.0f));
+			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(180.0f), vec3(1.0f, 0.0f, 0.0f));
+			ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
 
-				glBindTexture(GL_TEXTURE_2D, texturesBoles[numBola]);
-
-				glm::mat4 ModelMatrixBola = glm::translate(MatriuTG, vec3(posX, posY, alturaTapetZ));
-				ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(90.0f), vec3(0.0f, 0.0f, 1.0f));
-				ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(180.0f), vec3(1.0f, 0.0f, 0.0f));
-				ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
-
-				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
-				draw_TriEBO_Object(GLU_SPHERE);
-			}
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
+			draw_TriEBO_Object(GLU_SPHERE);
 		}
 
 		glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_FALSE);
