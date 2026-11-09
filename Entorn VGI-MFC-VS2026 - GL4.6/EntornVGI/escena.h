@@ -1,12 +1,12 @@
-﻿//******** PRACTICA VISUALITZACIÓ GRÀFICA INTERACTIVA (Escola Enginyeria - UAB)
-//******** Entorn bàsic VS2026 MULTIFINESTRA amb OpenGL 4.6, interfície MFC i llibreries GLM
-//******** Ferran Poveda, Marc Vivet, Carme Julià, Débora Gil, Enric Martí Gòdia (Setembre 2026)
+﻿//******** PRACTICA VISUALITZACI� GR�FICA INTERACTIVA (Escola Enginyeria - UAB)
+//******** Entorn b�sic VS2026 MULTIFINESTRA amb OpenGL 4.6, interf�cie MFC i llibreries GLM
+//******** Ferran Poveda, Marc Vivet, Carme Juli�, D�bora Gil, Enric Mart� G�dia (Setembre 2026)
 // escena.h : interface de escena.cpp
 
 #ifndef GLSOURCE_H
 #define GLSOURCE_H
 
-// Entorn VGI: OBJECTE OBJ. Include per la definició de l'objecte Obj_OBJ
+// Entorn VGI: OBJECTE OBJ. Include per la definici� de l'objecte Obj_OBJ
 #include "objLoader.h"	
 
 /* ------------------------------------------------------------------------- *
@@ -24,11 +24,16 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	int nptsU, CPunt3D PC_u[MAX_PATCH_CORBA], GLfloat pasCS, bool sw_PC, bool dib_TFrenet,
 	COBJModel* objecteOBJ,
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
-	float posicioBolaBlancaX, float posicioBolaBlancaY);
+	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
+	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15]);
 
-// Entorn VGI: dibuixa -> Funció que dibuixa objectes simples de la llibreria GLUT segons obj
+// Entorn VGI: dibuixa -> Funci� que dibuixa objectes simples de la llibreria GLUT segons obj
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
-	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY);
+	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
+	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
+	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
+	const bool bolesColorActives[15]);
 
 // Entorn VGI: Objecte Arc
 void arc(GLuint sh_programID, glm::mat4 MatriuTG, bool sw_mat[5]);

@@ -191,8 +191,19 @@ public:
 	float posicioBolaBlancaX = -3.0f;
 	float posicioBolaBlancaY = 0.0f;
 
-	float velocitatBolaBlancaX = 1.0f;
-	float velocitatBolaBlancaY = 0.5f;
+	float velocitatBolaBlancaX = 2.2f;
+	float velocitatBolaBlancaY = 0.0f;
+
+	// Matriu de rotacio acumulada de la bola blanca
+	glm::mat4 rotacioBolaBlanca = glm::mat4(1.0f);
+	bool bolaBlancaActiva = true;
+
+	// Estat fisic de les 15 boles de color (index 0 = textura bola 1).
+	// Les posicions i velocitats es calculen en coordenades locals XY de la taula.
+	glm::vec2 posicioBolesColor[15];
+	glm::vec2 velocitatBolesColor[15];
+	glm::mat4 rotacioBolesColor[15];
+	bool bolesColorActives[15] = {};
 
 	// Control de la deteccio de les bandes
 	bool alertaBandaDetectada = false;
@@ -314,6 +325,8 @@ public:
 	char* CEntornVGIView::CString2Char(CString entrada);		// Conversió string CString --> char *
 	void CEntornVGIView::Refl_MaterialOff();					// Desactivar Reflexió de Material
 	void CEntornVGIView::Refl_MaterialOn();						// Activar Reflexió de Material
+	void ReiniciaBolesBillar();					// Inicialitza les 16 boles i el rack
+	void ActualitzaFisicaBillar(float deltaTemps);	// Moviment, bandes i xocs entre boles
 	int CEntornVGIView::llegir_ptsC(char* nomf);				// Lectura Punts de Control Corba (B-spline o Bezier)
 	bool CEntornVGIView::llegir_FontLlum(char* nomf);			// Lectura Paràmetres Font de Llum
 	std::string CEntornVGIView::CString2String(const CString& cString); // Conversió CString --> std::string
@@ -333,7 +346,8 @@ public:
 
 	// Entorn VGI: Crida a Status Bar per imprimir informació de variables de control
 	CMFCStatusBar& GetStatusBar() const
-	{   return ((CMainFrame*)AfxGetMainWnd())->GetStatusBar();
+	{
+		return ((CMainFrame*)AfxGetMainWnd())->GetStatusBar();
 	}
 
 protected:

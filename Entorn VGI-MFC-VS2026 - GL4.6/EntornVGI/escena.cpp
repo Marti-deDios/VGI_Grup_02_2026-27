@@ -15,10 +15,14 @@
 #include "material.h"
 #include "visualitzacio.h"
 #include "escena.h"
+#include <cmath>
 
 // Prototip previ de dibuixa perqu� pugui rebre l'array de textures
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
-	GLuint texturesBoles[16], float posicioBolaBlancaX);
+	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
+	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
+	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
+	const bool bolesColorActives[15]);
 
 // Dibuixa Eixos Coordenades M�n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -82,7 +86,9 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	int nptsU, CPunt3D PC_u[MAX_PATCH_CORBA], GLfloat pasCS, bool sw_PC, bool dib_TFrenet,
 	COBJModel* objecteOBJ,
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
-	float posicioBolaBlancaX)
+	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
+	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15])
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -382,7 +388,9 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		// Dibuix de la resta d'objectes
 	default:
 		SeleccionaColorMaterial(sh_programID, col_object, sw_mat);
-		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles, posicioBolaBlancaX);
+		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles,
+			posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca,
+			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives);
 		break;
 	}
 
@@ -392,7 +400,10 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 
 
 // dibuixa: Funci� que dibuixa objectes simples de la llibreria GLUT segons obj
-void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16], float posicioBolaBlancaX)
+void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16],
+	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
+	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15])
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -533,7 +544,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
-		
+
 		// 2.4. Els 6 forats negres (Mida reduïda i vores suaus sense pics laterals)
 		{
 			CColor negreTronera;
@@ -614,6 +625,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		glUniform1i(glGetUniformLocation(sh_programID, "modulate"), GL_TRUE);
 
 		// 4. Definici de la Bola Blanca (Cue Ball)
+		if (bolaBlancaActiva)
 		{
 			CColor blanc;
 			blanc.r = 1.0f; blanc.g = 1.0f; blanc.b = 1.0f; blanc.a = 1.0f;
@@ -623,8 +635,10 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 
 			// Dibuixem la bola blanca a la seva posicio actual
 			glm::mat4 ModelMatrixBola = glm::translate(MatriuTG,
-				vec3(posicioBolaBlancaX, 0.0f, alturaTapetZ));
+				vec3(posicioBolaBlancaX, posicioBolaBlancaY, alturaTapetZ));
 
+			// Primer apliquem el gir acumulat en els eixos del tapet XY.
+			ModelMatrixBola = ModelMatrixBola * rotacioBolaBlanca;
 			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(90.0f), vec3(0.0f, 0.0f, 1.0f));
 			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(180.0f), vec3(1.0f, 0.0f, 0.0f));
 			ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
@@ -642,34 +656,26 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			 2, 14,  4, 15, 10  // Fila 5
 		};
 
-		float startX = 2.6f;
-		float startY = 0.0f;
-		float dX = escalaBola * 0.4f;
-		float dY = escalaBola * 0.5f;
+		for (int i = 0; i < 15; ++i) {
+			int numBola = ordenRack[i];
+			int indiceBola = numBola - 1;
+			if (!bolesColorActives[indiceBola]) continue; // La bola ja ha entrat en una tronera.
 
-		int index = 0;
-		for (int fila = 0; fila < 5; ++fila) {
-			float posX = startX + (fila * dX);
-			float posYIni = startY + (fila * (dY * 0.5f));
+			CColor col;
+			col.r = 1.0f; col.g = 1.0f; col.b = 1.0f; col.a = 1.0f;
+			SeleccionaColorMaterial(sh_programID, col, materialBola);
 
-			for (int b = 0; b <= fila; ++b) {
-				float posY = posYIni - (b * dY);
-				int numBola = ordenRack[index++];
+			glBindTexture(GL_TEXTURE_2D, texturesBoles[numBola]);
 
-				CColor col;
-				col.r = 1.0f; col.g = 1.0f; col.b = 1.0f; col.a = 1.0f;
-				SeleccionaColorMaterial(sh_programID, col, materialBola);
+			glm::mat4 ModelMatrixBola = glm::translate(MatriuTG,
+				vec3(posicioBolesColor[indiceBola].x, posicioBolesColor[indiceBola].y, alturaTapetZ));
+			ModelMatrixBola = ModelMatrixBola * rotacioBolesColor[indiceBola];
+			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(90.0f), vec3(0.0f, 0.0f, 1.0f));
+			ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(180.0f), vec3(1.0f, 0.0f, 0.0f));
+			ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
 
-				glBindTexture(GL_TEXTURE_2D, texturesBoles[numBola]);
-
-				glm::mat4 ModelMatrixBola = glm::translate(MatriuTG, vec3(posX, posY, alturaTapetZ));
-				ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(90.0f), vec3(0.0f, 0.0f, 1.0f));
-				ModelMatrixBola = glm::rotate(ModelMatrixBola, radians(180.0f), vec3(1.0f, 0.0f, 0.0f));
-				ModelMatrixBola = glm::scale(ModelMatrixBola, vec3(escalaBola, escalaBola, escalaBola));
-
-				glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
-				draw_TriEBO_Object(GLU_SPHERE);
-			}
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
+			draw_TriEBO_Object(GLU_SPHERE);
 		}
 
 		glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_FALSE);
