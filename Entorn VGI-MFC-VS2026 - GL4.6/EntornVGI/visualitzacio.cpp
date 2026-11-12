@@ -1169,3 +1169,21 @@ void SetTextureParameters(GLint num, GLint IDText, bool extensT, bool filterT, b
 	}
 }
 
+
+glm::mat4 configuracioCamera(TipusCamera tipusCamera, float posBola[3], float angleTir,
+	float distTir, float altitudSuperior, float centreTaula[3])
+{
+	if (tipusCamera == CAM_SUPERIOR)
+	{
+		const glm::vec3 eye(centreTaula[0], centreTaula[1], centreTaula[2] + altitudSuperior);
+		const glm::vec3 centre(centreTaula[0], centreTaula[1], centreTaula[2]);
+		return glm::lookAt(eye, centre, glm::vec3(0.0f, 1.0f, 0.0f));
+	}
+
+	const float angle = glm::radians(angleTir);
+	const glm::vec3 direccio(cos(angle), sin(angle), 0.0f);
+	const glm::vec3 bola(posBola[0], posBola[1], posBola[2]);
+	const glm::vec3 eye = bola - direccio * distTir + glm::vec3(0.0f, 0.0f, 2.25f);
+	const glm::vec3 centre = bola + direccio * 2.25f;
+	return glm::lookAt(eye, centre, glm::vec3(0.0f, 0.0f, 1.0f));
+}

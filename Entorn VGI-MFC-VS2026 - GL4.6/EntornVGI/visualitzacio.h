@@ -7,6 +7,11 @@
 #ifndef GLVIS_H
 #define GLVIS_H
 
+enum TipusCamera { CAM_TIR, CAM_SUPERIOR };
+
+glm::mat4 configuracioCamera(TipusCamera tipusCamera, float posBola[3], float angleTir,
+	float distTir, float altitudSuperior, float centreTaula[3]);
+
 /* ------------------------------------------------------------------------- */
 /*                                Funcions                                   */
 /* ------------------------------------------------------------------------- */
