@@ -1,4 +1,4 @@
-//******** PRACTICA VISUALITZACIÓ GRÀFICA INTERACTIVA (Escola Enginyeria - UAB)
+﻿//******** PRACTICA VISUALITZACIÓ GRÀFICA INTERACTIVA (Escola Enginyeria - UAB)
 //******** Entorn bàsic VS2026 MULTIFINESTRA amb OpenGL 4.6, interfície MFC i llibreries GLM
 //******** Ferran Poveda, Marc Vivet, Carme Julià, Débora Gil, Enric Martí Gòdia (Setembre 2026)
 // EntornVGIView.cpp: implementación de la clase CEntornVGIView
@@ -51,6 +51,8 @@
 IMPLEMENT_DYNCREATE(CEntornVGIView, CView)
 
 BEGIN_MESSAGE_MAP(CEntornVGIView, CView)
+	ON_COMMAND(ID_CAMERA_TIR, &CEntornVGIView::OnCameraTir)
+	ON_COMMAND(ID_CAMERA_SUPERIOR, &CEntornVGIView::OnCameraSuperior)
 	// Comandos de impresión estándar
 	ON_COMMAND(ID_FILE_PRINT, &CView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CView::OnFilePrint)
@@ -1169,6 +1171,18 @@ void CEntornVGIView::OnPaint()
 				eixos, grid, hgrid);
 		}
 
+		if (objecte == BILLAR && !modeCameraBillar)
+		{
+			float posicioBlanca[3] = { posicioBolaBlancaX, posicioBolaBlancaY, 0.25f };
+			float centreTaula[3] = { 0.0f, 0.0f, 0.1f };
+			ViewMatrix = configuracioCamera(m_cameraAct,
+				posicioBlanca, glm::degrees(angleTac),
+				m_distanciaTir, m_distanciaPerSobre, centreTaula);
+			glUseProgram(shader_programID);
+			glUniformMatrix4fv(glGetUniformLocation(shader_programID, "viewMatrix"),
+				1, GL_FALSE, &ViewMatrix[0][0]);
+		}
+
 		// Dibuix de l'Objecte o l'Escena
 		configura_Escena();     // Aplicar Transformacions Geometriques segons persiana Transformacio i configurar objectes.
 		dibuixa_Escena();		// Dibuix geometria de l'escena amb comandes GL.
@@ -1248,7 +1262,10 @@ void CEntornVGIView::dibuixa_Escena()
 		ObOBJ,				// Classe de l'objecte OBJ que conté els VAO's
 		GTMatrix, texturesBoles,
 		posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca, bolaBlancaActiva,
-		posicioBolesColor, rotacioBolesColor, bolesColorActives);
+		posicioBolesColor, rotacioBolesColor, bolesColorActives,
+		angleTac, carregantTir ? (forcaTir - 2.0f) * 0.10f :
+		(animantTir ? (0.28f - tempsAnimacioTac * 1.6f) : 0.0f),
+		bolaBlancaActiva && (BolesAturadesBillar() || animantTir));
 }
 
 
@@ -1557,6 +1574,54 @@ void CEntornVGIView::double2CString(double varf)
 //    - nFlags: Flags d'interrupció activats.
 void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	if (objecte == BILLAR)
+	{
+		if (nChar == '1')
+		{
+			OnCameraTir();
+			return;
+		}
+		if (nChar == '2')
+		{
+			OnCameraSuperior();
+			return;
+		}
+		if (nChar == 'V')
+		{
+			modeCameraBillar = !modeCameraBillar;
+			ratoliInicialitzat = false;
+			m_ButoEAvall = false;
+			if (carregantTir)
+			{
+				carregantTir = false;
+				if (::GetCapture() == m_hWnd) ReleaseCapture();
+			}
+			if (modeCameraBillar)
+				mobil = true;
+			InvalidateRect(NULL, false);
+			return;
+		}
+		if (nChar == 'R')
+		{
+			ReiniciaBolesBillar();
+			InvalidateRect(NULL, false);
+			return;
+		}
+		if (nChar == 'A' || nChar == VK_LEFT || nChar == 'D' || nChar == VK_RIGHT)
+		{
+			if (BolesAturadesBillar() && !animantTir && !carregantTir)
+			{
+				angleTac += (nChar == 'A' || nChar == VK_LEFT) ? 0.075f : -0.075f;
+				InvalidateRect(NULL, false);
+			}
+			return;
+		}
+		if (nChar == VK_SPACE)
+		{
+			ComencaTirBillar();
+			return;
+		}
+	}
 	// TODO: Agregue aquí su código de controlador de mensajes o llame al valor predeterminado
 	const double incr = 0.025f;
 	double modul = 0;
@@ -3414,6 +3479,21 @@ void CEntornVGIView::Teclat_RobotMB(UINT nChar, UINT nRepCnt)
 // OnLButtonDown: Funció que es crida quan s'apreta el botó esquerra del mouse.
 void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 {
+	if (objecte == BILLAR && !modeCameraBillar)
+	{
+		SetFocus();
+		if (BolesAturadesBillar() && bolaBlancaActiva && !animantTir)
+		{
+			carregantTir = true;
+			forcaTir = 3.0f;
+			puntIniciCarrega = point;
+			ultimPuntRatoli = point;
+			ratoliInicialitzat = true;
+			SetCapture();
+			InvalidateRect(NULL, false);
+		}
+		return;
+	}
 	// TODO: Agregue aquí su código de controlador de mensajes o llame al valor predeterminado
 
 	// Entorn VGI: Detectem en quina posició s'ha apretat el botó esquerra del
@@ -3429,6 +3509,19 @@ void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 // OnLButtonUp: Funció que es crida quan deixem d'apretar el botó esquerra del mouse.
 void CEntornVGIView::OnLButtonUp(UINT nFlags, CPoint point)
 {
+	if (objecte == BILLAR && !modeCameraBillar)
+	{
+		if (carregantTir)
+		{
+			carregantTir = false;
+			if (::GetCapture() == m_hWnd) ReleaseCapture();
+			if (point.y - puntIniciCarrega.y >= 8)
+				ComencaTirBillar();
+			else
+				InvalidateRect(NULL, false);
+		}
+		return;
+	}
 	// TODO: Agregue aquí su código de controlador de mensajes o llame al valor predeterminado
 	// Entorn VGI: Desactivem flag m_ButoEAvall quan deixem d'apretar botó esquerra del mouse.
 	m_ButoEAvall = false;
@@ -3507,6 +3600,28 @@ void CEntornVGIView::OnRButtonUp(UINT /* nFlags */, CPoint point)
 //							 (coord. pantalla) quan el botó s'ha apretat.
 void CEntornVGIView::OnMouseMove(UINT nFlags, CPoint point)
 {
+	if (objecte == BILLAR && !modeCameraBillar)
+	{
+		if (!ratoliInicialitzat)
+		{
+			ultimPuntRatoli = point;
+			ratoliInicialitzat = true;
+		}
+		if (carregantTir)
+		{
+			const float arrossegament = static_cast<float>(point.y - puntIniciCarrega.y);
+			forcaTir = (std::max)(1.0f, (std::min)(8.0f, 3.0f + arrossegament * 0.035f));
+			InvalidateRect(NULL, false);
+		}
+		else if (BolesAturadesBillar() && !animantTir)
+		{
+			const int desplacamentX = point.x - ultimPuntRatoli.x;
+			angleTac -= static_cast<float>(desplacamentX) * 0.009f;
+			if (desplacamentX != 0) InvalidateRect(NULL, false);
+		}
+		ultimPuntRatoli = point;
+		return;
+	}
 	// TODO: Agregue aquí su código de controlador de mensajes o llame al valor predeterminado
 	double modul = 0;
 	GLdouble vdir[3] = { 0.0, 0.0, 0.0 };
@@ -3840,15 +3955,39 @@ BOOL CEntornVGIView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 /* ------------------------------------------------------------------------- */
 /*                 FISICA DEL BILLAR: MOVIMENT I COLISIONS                   */
 /* ------------------------------------------------------------------------- */
+bool CEntornVGIView::BolesAturadesBillar() const
+{
+	const float llindar = 0.015f * 0.015f;
+	if (bolaBlancaActiva &&
+		velocitatBolaBlancaX * velocitatBolaBlancaX +
+		velocitatBolaBlancaY * velocitatBolaBlancaY > llindar)
+		return false;
+	for (int i = 0; i < 15; ++i)
+		if (bolesColorActives[i] && glm::dot(velocitatBolesColor[i], velocitatBolesColor[i]) > llindar)
+			return false;
+	return true;
+}
+
+void CEntornVGIView::ComencaTirBillar()
+{
+	if (objecte != BILLAR || !bolaBlancaActiva || !BolesAturadesBillar() || animantTir || carregantTir)
+		return;
+	animantTir = true;
+	tirAplicat = false;
+	tempsAnimacioTac = 0.0f;
+	InvalidateRect(NULL, false);
+}
+
 void CEntornVGIView::ReiniciaBolesBillar()
 {
 	// La bola blanca comenca alineada amb el centre del rack per fer el primer xoc.
 	posicioBolaBlancaX = -3.0f;
 	posicioBolaBlancaY = 0.0f;
-	velocitatBolaBlancaX = 2.2f;
+	velocitatBolaBlancaX = 0.0f;
 	velocitatBolaBlancaY = 0.0f;
 	rotacioBolaBlanca = glm::mat4(1.0f);
 	bolaBlancaActiva = true;
+	tempsBolaBlancaFora = 0.0f;
 
 	// Mateixa disposicio triangular que ja es dibuixava a escena.cpp.
 	const int ordenRack[15] = {
@@ -3888,10 +4027,65 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	}
 
 	alertaBandaDetectada = false;
+	angleTac = 0.0f;
+	forcaTir = 3.0f;
+	tempsAnimacioTac = 0.0f;
+	carregantTir = false;
+	animantTir = false;
+	tirAplicat = false;
+	ratoliInicialitzat = false;
+}
+
+void CEntornVGIView::RecolocaBolaBlancaBillar()
+{
+	if (bolaBlancaActiva || (!BolesAturadesBillar() && tempsBolaBlancaFora < 1.5f))
+		return;
+
+	const float separacioMinima2 = 0.26f * 0.26f;
+	for (int fila = 0; fila < 11; ++fila)
+	{
+		const float y = fila == 0 ? 0.0f :
+			(fila % 2 == 1 ? 1.0f : -1.0f) * ((fila + 1) / 2) * 0.36f;
+		for (int columna = 0; columna < 18; ++columna)
+		{
+			const glm::vec2 candidat(-3.0f + columna * 0.35f, y);
+			bool ocupat = false;
+			for (int i = 0; i < 15; ++i)
+			{
+				if (!bolesColorActives[i]) continue;
+				const glm::vec2 separacio = candidat - posicioBolesColor[i];
+				if (glm::dot(separacio, separacio) < separacioMinima2)
+				{
+					ocupat = true;
+					break;
+				}
+			}
+			if (ocupat) continue;
+
+			posicioBolaBlancaX = candidat.x;
+			posicioBolaBlancaY = candidat.y;
+			velocitatBolaBlancaX = 0.0f;
+			velocitatBolaBlancaY = 0.0f;
+			rotacioBolaBlanca = glm::mat4(1.0f);
+			bolaBlancaActiva = true;
+			tempsBolaBlancaFora = 0.0f;
+			forcaTir = 3.0f;
+			return;
+		}
+	}
 }
 
 void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 {
+	if (BolesAturadesBillar())
+	{
+		velocitatBolaBlancaX = 0.0f;
+		velocitatBolaBlancaY = 0.0f;
+		for (int i = 0; i < 15; ++i)
+			velocitatBolesColor[i] = glm::vec2(0.0f, 0.0f);
+		return;
+	}
+
 	// Radi de la bola: esfera creada amb radi 0.2 i escalada per 0.55.
 	const float radi = 0.11f;
 	const float diametre = 2.0f * radi;
@@ -4073,11 +4267,32 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		deltaTemps = (std::max)(0.0f, (std::min)(deltaTemps, 0.10f));
 		tempsAcumulatBillar += deltaTemps;
 
+		if (animantTir)
+		{
+			tempsAnimacioTac += deltaTemps;
+			if (!tirAplicat && tempsAnimacioTac >= 0.15f)
+			{
+				velocitatBolaBlancaX = std::cos(angleTac) * forcaTir;
+				velocitatBolaBlancaY = std::sin(angleTac) * forcaTir;
+				tirAplicat = true;
+			}
+			if (tempsAnimacioTac >= 0.32f)
+				animantTir = false;
+		}
+
 		const float pasMaxim = 1.0f / 120.0f;
 		const int nombrePassos = (std::max)(1, static_cast<int>(std::ceil(deltaTemps / pasMaxim)));
 		const float pasTemps = deltaTemps / nombrePassos;
 		for (int pas = 0; pas < nombrePassos; ++pas)
 			ActualitzaFisicaBillar(pasTemps);
+
+		if (!bolaBlancaActiva)
+		{
+			tempsBolaBlancaFora += deltaTemps;
+			RecolocaBolaBlancaBillar();
+		}
+		else
+			tempsBolaBlancaFora = 0.0f;
 
 		// Comprovem aproximadament cada segon que funciona
 		if (tempsAcumulatBillar >= 1.0f)
@@ -6864,5 +7079,22 @@ void CEntornVGIView::OnObjecteBillar()
 	// Activem el temporitzador cada 16 mil·lisegons
 	SetTimer(5000, 16, NULL);
 
+	InvalidateRect(NULL, false);
+}
+void CEntornVGIView::OnCameraTir()
+{
+	m_cameraAct = CAM_TIR;
+	modeCameraBillar = false;
+	ratoliInicialitzat = false;
+	m_ButoEAvall = false;
+	InvalidateRect(NULL, false);
+}
+
+void CEntornVGIView::OnCameraSuperior()
+{
+	m_cameraAct = CAM_SUPERIOR;
+	modeCameraBillar = false;
+	ratoliInicialitzat = false;
+	m_ButoEAvall = false;
 	InvalidateRect(NULL, false);
 }

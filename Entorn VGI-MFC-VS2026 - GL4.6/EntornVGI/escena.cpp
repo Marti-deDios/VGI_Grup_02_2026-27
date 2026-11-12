@@ -1,4 +1,4 @@
-//******** PRACTICA VISUALITZACI� GR�FICA INTERACTIVA (Escola Enginyeria - UAB)
+﻿//******** PRACTICA VISUALITZACI� GR�FICA INTERACTIVA (Escola Enginyeria - UAB)
 //******** Entorn b�sic VS2026 MULTIFINESTRA amb OpenGL 4.6, interf�cie MFC i llibreries GLM
 //******** Ferran Poveda, Marc Vivet, Carme Juli�, D�bora Gil, Enric Mart� G�dia (Setembre 2026)
 // escena.cpp : Aqui es on ha d'anar el codi de les funcions que 
@@ -22,7 +22,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
 	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
 	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
-	const bool bolesColorActives[15]);
+	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac);
 
 // Dibuixa Eixos Coordenades M�n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -88,7 +88,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15])
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -390,7 +390,8 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		SeleccionaColorMaterial(sh_programID, col_object, sw_mat);
 		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles,
 			posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca,
-			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives);
+			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives,
+			angleTac, desplacamentTac, mostrarTac);
 		break;
 	}
 
@@ -403,7 +404,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15])
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac)
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -680,6 +681,50 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 
 		glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_FALSE);
 		glUniform1i(glGetUniformLocation(sh_programID, "texturaActiva"), 0);
+
+		if (mostrarTac && bolaBlancaActiva)
+		{
+			glm::mat4 baseTac = glm::translate(MatriuTG,
+				vec3(posicioBolaBlancaX, posicioBolaBlancaY, alturaTapetZ));
+			baseTac = glm::rotate(baseTac, angleTac, vec3(0.0f, 0.0f, 1.0f));
+
+			CColor blancPunta = { 0.88f, 0.91f, 0.86f, 1.0f };
+			CColor fustaTac = { 0.78f, 0.55f, 0.30f, 1.0f };
+			CColor gomaTac = { 0.07f, 0.08f, 0.09f, 1.0f };
+			CColor plataTac = { 0.65f, 0.68f, 0.68f, 1.0f };
+			bool materialTac[5] = { false, true, true, true, true };
+
+			SeleccionaColorMaterial(sh_programID, blancPunta, materialTac);
+			ModelMatrix = glm::translate(baseTac, vec3(-0.18f - desplacamentTac, 0.0f, 0.12f));
+			ModelMatrix = glm::scale(ModelMatrix, vec3(0.06f, 0.045f, 0.045f));
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+			draw_TriEBO_Object(GLUT_CUBE);
+
+			SeleccionaColorMaterial(sh_programID, fustaTac, materialTac);
+			ModelMatrix = glm::translate(baseTac, vec3(-0.83f - desplacamentTac, 0.0f, 0.14f));
+			ModelMatrix = glm::scale(ModelMatrix, vec3(1.25f, 0.055f, 0.055f));
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+			draw_TriEBO_Object(GLUT_CUBE);
+
+			SeleccionaColorMaterial(sh_programID, plataTac, materialTac);
+			ModelMatrix = glm::translate(baseTac, vec3(-1.48f - desplacamentTac, 0.0f, 0.14f));
+			ModelMatrix = glm::scale(ModelMatrix, vec3(0.06f, 0.083f, 0.083f));
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+			draw_TriEBO_Object(GLUT_CUBE);
+
+			SeleccionaColorMaterial(sh_programID, gomaTac, materialTac);
+			ModelMatrix = glm::translate(baseTac, vec3(-1.77f - desplacamentTac, 0.0f, 0.14f));
+			ModelMatrix = glm::scale(ModelMatrix, vec3(0.54f, 0.092f, 0.092f));
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+			draw_TriEBO_Object(GLUT_CUBE);
+
+			CColor colorGuia = { 0.95f, 0.82f, 0.32f, 1.0f };
+			SeleccionaColorMaterial(sh_programID, colorGuia, materialTac);
+			ModelMatrix = glm::translate(baseTac, vec3(1.22f, 0.0f, -0.09f));
+			ModelMatrix = glm::scale(ModelMatrix, vec3(2.0f, 0.015f, 0.01f));
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
+			draw_TriEBO_Object(GLUT_CUBE);
+		}
 
 	} break;
 

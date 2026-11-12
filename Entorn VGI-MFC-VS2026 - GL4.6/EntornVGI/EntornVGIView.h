@@ -1,4 +1,4 @@
-
+﻿
 //******** PRACTICA VISUALITZACIÓ GRÀFICA INTERACTIVA (Escola Enginyeria - UAB)
 //******** Entorn bàsic VS2026 MULTIFINESTRA amb OpenGL 4.6, interfície MFC i llibreries GLM
 //******** Ferran Poveda, Marc Vivet, Carme Julià, Débora Gil, Enric Martí Gòdia (Setembre 2026)
@@ -25,6 +25,7 @@
 
 // Entorn VGI: OBJECTE OBJ. Include per la definició de l'objecte Obj_OBJ
 #include "objLoader.h"
+#include "visualitzacio.h"
 
 // Entorn VGI. QUATERNIONS: Include per a la definició del tipus GL_QUAT i crida a les funcions de quatern.
 //#include "quatern.h"
@@ -39,6 +40,13 @@ protected: // Crear sólo a partir de serialización
 	// Atributos
 public:
 	CEntornVGIDoc* GetDocument() const;
+
+	TipusCamera m_cameraAct = CAM_SUPERIOR;
+	float m_distanciaTir = 5.5f;
+	float m_distanciaPerSobre = 14.0f;
+
+	afx_msg void OnCameraTir();
+	afx_msg void OnCameraSuperior();
 
 	//-------------- Entorn VGI: Variables globals de CPractivaView
 	HGLRC	 m_hrc;		// OpenGL Rendering Context 
@@ -191,12 +199,13 @@ public:
 	float posicioBolaBlancaX = -3.0f;
 	float posicioBolaBlancaY = 0.0f;
 
-	float velocitatBolaBlancaX = 2.2f;
+	float velocitatBolaBlancaX = 0.0f;
 	float velocitatBolaBlancaY = 0.0f;
 
 	// Matriu de rotacio acumulada de la bola blanca
 	glm::mat4 rotacioBolaBlanca = glm::mat4(1.0f);
 	bool bolaBlancaActiva = true;
+	float tempsBolaBlancaFora = 0.0f;
 
 	// Estat fisic de les 15 boles de color (index 0 = textura bola 1).
 	// Les posicions i velocitats es calculen en coordenades locals XY de la taula.
@@ -204,6 +213,18 @@ public:
 	glm::vec2 velocitatBolesColor[15];
 	glm::mat4 rotacioBolesColor[15];
 	bool bolesColorActives[15] = {};
+
+	float angleTac = 0.0f;
+	float forcaTir = 3.0f;
+	float tempsAnimacioTac = 0.0f;
+	bool carregantTir = false;
+	bool modeCameraBillar = false;
+	bool animantTir = false;
+	bool tirAplicat = false;
+	bool ratoliInicialitzat = false;
+	CPoint puntIniciCarrega;
+	CPoint ultimPuntRatoli;
+
 
 	// Control de la deteccio de les bandes
 	bool alertaBandaDetectada = false;
@@ -326,7 +347,10 @@ public:
 	void CEntornVGIView::Refl_MaterialOff();					// Desactivar Reflexió de Material
 	void CEntornVGIView::Refl_MaterialOn();						// Activar Reflexió de Material
 	void ReiniciaBolesBillar();					// Inicialitza les 16 boles i el rack
-	void ActualitzaFisicaBillar(float deltaTemps);	// Moviment, bandes i xocs entre boles
+	void ActualitzaFisicaBillar(float deltaTemps);
+	bool BolesAturadesBillar() const;
+	void ComencaTirBillar();
+	void RecolocaBolaBlancaBillar();	// Moviment, bandes i xocs entre boles
 	int CEntornVGIView::llegir_ptsC(char* nomf);				// Lectura Punts de Control Corba (B-spline o Bezier)
 	bool CEntornVGIView::llegir_FontLlum(char* nomf);			// Lectura Paràmetres Font de Llum
 	std::string CEntornVGIView::CString2String(const CString& cString); // Conversió CString --> std::string
