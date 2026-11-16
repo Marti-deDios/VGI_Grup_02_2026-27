@@ -1607,6 +1607,25 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 			InvalidateRect(NULL, false);
 			return;
 		}
+		if (partidaDosJugadors.blancaEnMa() && bolaBlancaActiva &&
+			BolesAturadesBillar() && !animantTir &&
+			(nChar == 'I' || nChar == 'J' || nChar == 'K' || nChar == 'L'))
+		{
+			float x = posicioBolaBlancaX;
+			float y = posicioBolaBlancaY;
+			const float pas = 0.14f;
+			if (nChar == 'I') y += pas;
+			if (nChar == 'K') y -= pas;
+			if (nChar == 'J') x -= pas;
+			if (nChar == 'L') x += pas;
+			if (PotMoureBlanca(x, y))
+			{
+				posicioBolaBlancaX = x;
+				posicioBolaBlancaY = y;
+				InvalidateRect(NULL, false);
+			}
+			return;
+		}
 		if (nChar == 'A' || nChar == VK_LEFT || nChar == 'D' || nChar == VK_RIGHT)
 		{
 			if (BolesAturadesBillar() && !animantTir && !carregantTir)
@@ -3970,11 +3989,13 @@ bool CEntornVGIView::BolesAturadesBillar() const
 
 void CEntornVGIView::ComencaTirBillar()
 {
-	if (objecte != BILLAR || !bolaBlancaActiva || !BolesAturadesBillar() || animantTir || carregantTir)
+	if (objecte != BILLAR || !bolaBlancaActiva || !BolesAturadesBillar() || animantTir || carregantTir || !partidaDosJugadors.potTirar())
 		return;
+	if (!partidaDosJugadors.iniciaTir()) return;
 	animantTir = true;
 	tirAplicat = false;
 	tempsAnimacioTac = 0.0f;
+	MostraEstatPartida(_T("Tir en curs"));
 	InvalidateRect(NULL, false);
 }
 
@@ -4034,6 +4055,8 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	animantTir = false;
 	tirAplicat = false;
 	ratoliInicialitzat = false;
+	partidaDosJugadors.reinicia();
+	MostraEstatPartida(_T("Nova partida"));
 }
 
 void CEntornVGIView::RecolocaBolaBlancaBillar()
@@ -4073,6 +4096,50 @@ void CEntornVGIView::RecolocaBolaBlancaBillar()
 			return;
 		}
 	}
+}
+
+bool CEntornVGIView::PotMoureBlanca(float x, float y) const
+{
+	if (x < -4.70f || x > 4.70f || y < -2.20f || y > 2.20f)
+		return false;
+	const glm::vec2 candidat(x, y);
+	const glm::vec2 forats[6] = {
+		glm::vec2(-4.72f, 2.22f), glm::vec2(0.0f, 2.34f), glm::vec2(4.72f, 2.22f),
+		glm::vec2(-4.72f, -2.22f), glm::vec2(0.0f, -2.34f), glm::vec2(4.72f, -2.22f)
+	};
+	for (const auto& forat : forats)
+		if (glm::length(candidat - forat) < 0.40f) return false;
+	for (int i = 0; i < 15; ++i)
+	{
+		if (!bolesColorActives[i]) continue;
+		if (glm::length(candidat - posicioBolesColor[i]) < 0.24f) return false;
+	}
+	return true;
+}
+
+void CEntornVGIView::MostraEstatPartida(const CString& nota)
+{
+	CFrameWnd* marc = GetParentFrame();
+	if (!marc) return;
+	auto nomGrup = [](int grup) -> CString {
+		if (grup == 1) return _T("Llises");
+		if (grup == 2) return _T("Ratllades");
+		return _T("Sense assignar");
+	};
+	const CString grup1 = nomGrup(partidaDosJugadors.grupJugador(1));
+	const CString grup2 = nomGrup(partidaDosJugadors.grupJugador(2));
+	CString estat;
+	if (partidaDosJugadors.guanyador() != 0)
+		estat.Format(_T("BILLAR 3D | HA GUANYAT EL JUGADOR %d | R: nova partida"), partidaDosJugadors.guanyador());
+	else
+		estat.Format(_T("BILLAR | TORN J%d%s | J1: %s (%d) | J2: %s (%d)"),
+			partidaDosJugadors.jugadorActual(),
+			partidaDosJugadors.blancaEnMa() ? _T(" - BLANCA EN MA") : _T(""),
+			(LPCTSTR)grup1, partidaDosJugadors.bolesRestants(1),
+			(LPCTSTR)grup2, partidaDosJugadors.bolesRestants(2));
+	if (!nota.IsEmpty()) estat += _T(" | ") + nota;
+	marc->SetWindowText(estat);
+	marc->SetMessageText(estat);
 }
 
 void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
@@ -4164,6 +4231,7 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 		}
 		if (dinsTronera)
 		{
+			partidaDosJugadors.registraEmbocada(i);
 			actives[i] = false;
 			velocitats[i] = glm::vec2(0.0f, 0.0f);
 			continue;
@@ -4175,12 +4243,14 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			posicions[i].x = -limitX;
 			if (velocitats[i].x < 0.0f) velocitats[i].x = -velocitats[i].x * restitucioBanda;
 			alertaBandaDetectada = true;
+			partidaDosJugadors.registraBanda();
 		}
 		else if (posicions[i].x > limitX)
 		{
 			posicions[i].x = limitX;
 			if (velocitats[i].x > 0.0f) velocitats[i].x = -velocitats[i].x * restitucioBanda;
 			alertaBandaDetectada = true;
+			partidaDosJugadors.registraBanda();
 		}
 
 		if (posicions[i].y < -limitY)
@@ -4188,12 +4258,14 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			posicions[i].y = -limitY;
 			if (velocitats[i].y < 0.0f) velocitats[i].y = -velocitats[i].y * restitucioBanda;
 			alertaBandaDetectada = true;
+			partidaDosJugadors.registraBanda();
 		}
 		else if (posicions[i].y > limitY)
 		{
 			posicions[i].y = limitY;
 			if (velocitats[i].y > 0.0f) velocitats[i].y = -velocitats[i].y * restitucioBanda;
 			alertaBandaDetectada = true;
+			partidaDosJugadors.registraBanda();
 		}
 	}
 
@@ -4223,6 +4295,8 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			const float velocitatNormal = glm::dot(velocitatRelativa, normal);
 			if (velocitatNormal < 0.0f)
 			{
+				if (i == 0) partidaDosJugadors.registraContacte(j);
+				if (j == 0) partidaDosJugadors.registraContacte(i);
 				const float impuls = -(1.0f + restitucioBoles) * velocitatNormal * 0.5f;
 				velocitats[i] -= impuls * normal;
 				velocitats[j] += impuls * normal;
@@ -4286,13 +4360,34 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		for (int pas = 0; pas < nombrePassos; ++pas)
 			ActualitzaFisicaBillar(pasTemps);
 
-		if (!bolaBlancaActiva)
+		if (partidaDosJugadors.tirEnCurs() && tirAplicat && !animantTir && BolesAturadesBillar())
 		{
-			tempsBolaBlancaFora += deltaTemps;
-			RecolocaBolaBlancaBillar();
+			const ReglesDosJugadors::Resultat resultat = partidaDosJugadors.finalitzaTir();
+			if (resultat == ReglesDosJugadors::Resultat::RepetirTrencada)
+			{
+				ReiniciaBolesBillar();
+				MostraEstatPartida(_T("Negra a la trencada: repetim"));
+			}
+			else
+			{
+				if (!bolaBlancaActiva) RecolocaBolaBlancaBillar();
+				CString nota;
+				if (resultat == ReglesDosJugadors::Resultat::Falta) nota = _T("Falta: canvi de torn");
+				else if (resultat == ReglesDosJugadors::Resultat::CanviTorn) nota = _T("Canvi de torn");
+				else if (resultat == ReglesDosJugadors::Resultat::Continua) nota = _T("Torna a tirar");
+				else if (resultat == ReglesDosJugadors::Resultat::Derrota) nota = _T("Negra abans d'hora o amb falta");
+				MostraEstatPartida(nota);
+				if (partidaDosJugadors.guanyador() != 0)
+				{
+					CString missatge;
+					missatge.Format(_T("Ha guanyat el jugador %d! Prem R per jugar una altra partida."), partidaDosJugadors.guanyador());
+					AfxMessageBox(missatge);
+				}
+			}
 		}
-		else
-			tempsBolaBlancaFora = 0.0f;
+
+		if (!bolaBlancaActiva && !partidaDosJugadors.tirEnCurs() && BolesAturadesBillar())
+			RecolocaBolaBlancaBillar();
 
 		// Comprovem aproximadament cada segon que funciona
 		if (tempsAcumulatBillar >= 1.0f)
