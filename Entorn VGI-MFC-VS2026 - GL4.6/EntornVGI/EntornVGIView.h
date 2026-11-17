@@ -26,7 +26,9 @@
 // Entorn VGI: OBJECTE OBJ. Include per la definició de l'objecte Obj_OBJ
 #include "objLoader.h"
 #include "visualitzacio.h"
-#include "ReglesDosJugadors.h"
+
+// Menu principal del videojoc (Jugar / Controls / Credits)
+#include "MenuBillar.h"
 
 // Entorn VGI. QUATERNIONS: Include per a la definició del tipus GL_QUAT i crida a les funcions de quatern.
 //#include "quatern.h"
@@ -207,7 +209,6 @@ public:
 	glm::mat4 rotacioBolaBlanca = glm::mat4(1.0f);
 	bool bolaBlancaActiva = true;
 	float tempsBolaBlancaFora = 0.0f;
-	ReglesDosJugadors partidaDosJugadors;
 
 	// Estat fisic de les 15 boles de color (index 0 = textura bola 1).
 	// Les posicions i velocitats es calculen en coordenades locals XY de la taula.
@@ -230,6 +231,12 @@ public:
 
 	// Control de la deteccio de les bandes
 	bool alertaBandaDetectada = false;
+
+	// Menu del videojoc: es mostra en arrencar i en prémer Esc durant la partida
+	CMenuBillar m_menu;
+	bool m_enMenu = true;				// TRUE: menu visible. FALSE: s'esta jugant.
+	bool m_menuPendentInicialitzar = true;	// TRUE fins que OnPaint prepara el billar per al menu
+	bool MenuActiu() const { return m_enMenu && objecte == BILLAR; }
 
 
 	// Entorn VGI : QUATERNIONS: Animació de cossos rígids per QUATERNIONS
@@ -352,9 +359,10 @@ public:
 	void ActualitzaFisicaBillar(float deltaTemps);
 	bool BolesAturadesBillar() const;
 	void ComencaTirBillar();
-	void RecolocaBolaBlancaBillar();
-	bool PotMoureBlanca(float x, float y) const;
-	void MostraEstatPartida(const CString& nota = CString());
+	void RecolocaBolaBlancaBillar();	// Moviment, bandes i xocs entre boles
+	void PreparaMenuInicial();			// Shaders + escena del billar per al fons del menu
+	void ComencaPartida();				// Boto JUGAR: tanca el menu i reinicia les boles
+	void TornaAlMenu();					// Tecla Esc durant la partida
 	int CEntornVGIView::llegir_ptsC(char* nomf);				// Lectura Punts de Control Corba (B-spline o Bezier)
 	bool CEntornVGIView::llegir_FontLlum(char* nomf);			// Lectura Paràmetres Font de Llum
 	std::string CEntornVGIView::CString2String(const CString& cString); // Conversió CString --> std::string

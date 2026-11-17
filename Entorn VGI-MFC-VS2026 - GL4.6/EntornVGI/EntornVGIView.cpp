@@ -973,6 +973,14 @@ void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum severi
 
 void CEntornVGIView::OnDestroy()
 {
+	// Menu del joc: alliberar els recursos OpenGL (cal el context actiu)
+	if (m_pDC != NULL && m_hRC != NULL)
+	{
+		wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
+		m_menu.Allibera();
+		wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
+	}
+
 	CView::OnDestroy();
 
 	// TODO: Agregue aquí su código de controlador de mensajes
@@ -1023,6 +1031,13 @@ void CEntornVGIView::OnDraw(CDC* /*pDC*/)
 void CEntornVGIView::OnPaint()
 {
 	CPaintDC dc(this); // device context for painting
+
+	// Menu del joc: la primera vegada deixem l'escena del billar preparada com a fons del menu
+	if (m_menuPendentInicialitzar)
+	{
+		m_menuPendentInicialitzar = false;
+		PreparaMenuInicial();
+	}
 	// TODO: Agregue aquí su código de controlador de mensajes
 	// No llama a CView::OnPaint() para mensajes de pintura
 	GLdouble vpv[3] = { 0.0, 0.0, 1.0 };
@@ -1171,7 +1186,17 @@ void CEntornVGIView::OnPaint()
 				eixos, grid, hgrid);
 		}
 
-		if (objecte == BILLAR && !modeCameraBillar)
+		if (MenuActiu())
+		{
+			// Fons del menu: la camera gira lentament al voltant de la taula (una volta cada 90 s)
+			const float angleMenu = 6.2831853f * static_cast<float>(GetTickCount64() % 90000ULL) / 90000.0f;
+			const glm::vec3 ullMenu(11.0f * std::cos(angleMenu), 11.0f * std::sin(angleMenu), 5.0f);
+			ViewMatrix = glm::lookAt(ullMenu, glm::vec3(0.0f, 0.0f, 0.1f), glm::vec3(0.0f, 0.0f, 1.0f));
+			glUseProgram(shader_programID);
+			glUniformMatrix4fv(glGetUniformLocation(shader_programID, "viewMatrix"),
+				1, GL_FALSE, &ViewMatrix[0][0]);
+		}
+		else if (objecte == BILLAR && !modeCameraBillar)
 		{
 			float posicioBlanca[3] = { posicioBolaBlancaX, posicioBolaBlancaY, 0.25f };
 			float centreTaula[3] = { 0.0f, 0.0f, 0.1f };
@@ -1186,6 +1211,9 @@ void CEntornVGIView::OnPaint()
 		// Dibuix de l'Objecte o l'Escena
 		configura_Escena();     // Aplicar Transformacions Geometriques segons persiana Transformacio i configurar objectes.
 		dibuixa_Escena();		// Dibuix geometria de l'escena amb comandes GL.
+
+		// Menu del joc (Jugar / Controls / Credits) dibuixat en 2D per sobre de l'escena
+		if (MenuActiu()) m_menu.Dibuixa(w, h);
 
 		// Intercanvia l'escena al front de la pantalla
 		SwapBuffers(m_pDC->GetSafeHdc());
@@ -1265,7 +1293,7 @@ void CEntornVGIView::dibuixa_Escena()
 		posicioBolesColor, rotacioBolesColor, bolesColorActives,
 		angleTac, carregantTir ? (forcaTir - 2.0f) * 0.10f :
 		(animantTir ? (0.28f - tempsAnimacioTac * 1.6f) : 0.0f),
-		bolaBlancaActiva && (BolesAturadesBillar() || animantTir));
+		!MenuActiu() && bolaBlancaActiva && (BolesAturadesBillar() || animantTir));
 }
 
 
@@ -1574,6 +1602,24 @@ void CEntornVGIView::double2CString(double varf)
 //    - nFlags: Flags d'interrupció activats.
 void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	// Menu del joc: el teclat navega pels botons (fletxes, Intro, Esc)
+	if (MenuActiu())
+	{
+		if (nChar == 'F')
+			OnVistaFullScreen();
+		else if (m_menu.TeclaPremuda(nChar) == CMenuBillar::ACCIO_JUGAR)
+			ComencaPartida();
+		InvalidateRect(NULL, false);
+		return;
+	}
+
+	// Durant la partida, Esc torna al menu
+	if (objecte == BILLAR && nChar == VK_ESCAPE)
+	{
+		TornaAlMenu();
+		return;
+	}
+
 	if (objecte == BILLAR)
 	{
 		if (nChar == '1')
@@ -1605,25 +1651,6 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		{
 			ReiniciaBolesBillar();
 			InvalidateRect(NULL, false);
-			return;
-		}
-		if (partidaDosJugadors.blancaEnMa() && bolaBlancaActiva &&
-			BolesAturadesBillar() && !animantTir &&
-			(nChar == 'I' || nChar == 'J' || nChar == 'K' || nChar == 'L'))
-		{
-			float x = posicioBolaBlancaX;
-			float y = posicioBolaBlancaY;
-			const float pas = 0.14f;
-			if (nChar == 'I') y += pas;
-			if (nChar == 'K') y -= pas;
-			if (nChar == 'J') x -= pas;
-			if (nChar == 'L') x += pas;
-			if (PotMoureBlanca(x, y))
-			{
-				posicioBolaBlancaX = x;
-				posicioBolaBlancaY = y;
-				InvalidateRect(NULL, false);
-			}
 			return;
 		}
 		if (nChar == 'A' || nChar == VK_LEFT || nChar == 'D' || nChar == VK_RIGHT)
@@ -3498,6 +3525,12 @@ void CEntornVGIView::Teclat_RobotMB(UINT nChar, UINT nRepCnt)
 // OnLButtonDown: Funció que es crida quan s'apreta el botó esquerra del mouse.
 void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 {
+	if (MenuActiu())
+	{
+		SetFocus();
+		m_menu.RatoliPrem(point.x, point.y, w, h);
+		return;
+	}
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
 		SetFocus();
@@ -3528,6 +3561,12 @@ void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 // OnLButtonUp: Funció que es crida quan deixem d'apretar el botó esquerra del mouse.
 void CEntornVGIView::OnLButtonUp(UINT nFlags, CPoint point)
 {
+	if (MenuActiu())
+	{
+		if (m_menu.RatoliSolta(point.x, point.y, w, h) == CMenuBillar::ACCIO_JUGAR)
+			ComencaPartida();
+		return;
+	}
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
 		if (carregantTir)
@@ -3619,6 +3658,11 @@ void CEntornVGIView::OnRButtonUp(UINT /* nFlags */, CPoint point)
 //							 (coord. pantalla) quan el botó s'ha apretat.
 void CEntornVGIView::OnMouseMove(UINT nFlags, CPoint point)
 {
+	if (MenuActiu())
+	{
+		m_menu.RatoliMou(point.x, point.y, w, h);
+		return;
+	}
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
 		if (!ratoliInicialitzat)
@@ -3909,6 +3953,8 @@ void CEntornVGIView::OnMouseMove(UINT nFlags, CPoint point)
 //							 (coord. pantalla) quan el botó s'ha apretat.
 BOOL CEntornVGIView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
+	if (MenuActiu()) return TRUE;	// El menu no fa zoom
+
 	// TODO: Agregue aquí su código de controlador de mensajes o llame al valor predeterminado
 	double modul = 0;
 	GLdouble vdir[3] = { 0.0, 0.0, 0.0 };
@@ -3989,13 +4035,11 @@ bool CEntornVGIView::BolesAturadesBillar() const
 
 void CEntornVGIView::ComencaTirBillar()
 {
-	if (objecte != BILLAR || !bolaBlancaActiva || !BolesAturadesBillar() || animantTir || carregantTir || !partidaDosJugadors.potTirar())
+	if (objecte != BILLAR || !bolaBlancaActiva || !BolesAturadesBillar() || animantTir || carregantTir)
 		return;
-	if (!partidaDosJugadors.iniciaTir()) return;
 	animantTir = true;
 	tirAplicat = false;
 	tempsAnimacioTac = 0.0f;
-	MostraEstatPartida(_T("Tir en curs"));
 	InvalidateRect(NULL, false);
 }
 
@@ -4055,8 +4099,6 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	animantTir = false;
 	tirAplicat = false;
 	ratoliInicialitzat = false;
-	partidaDosJugadors.reinicia();
-	MostraEstatPartida(_T("Nova partida"));
 }
 
 void CEntornVGIView::RecolocaBolaBlancaBillar()
@@ -4096,50 +4138,6 @@ void CEntornVGIView::RecolocaBolaBlancaBillar()
 			return;
 		}
 	}
-}
-
-bool CEntornVGIView::PotMoureBlanca(float x, float y) const
-{
-	if (x < -4.70f || x > 4.70f || y < -2.20f || y > 2.20f)
-		return false;
-	const glm::vec2 candidat(x, y);
-	const glm::vec2 forats[6] = {
-		glm::vec2(-4.72f, 2.22f), glm::vec2(0.0f, 2.34f), glm::vec2(4.72f, 2.22f),
-		glm::vec2(-4.72f, -2.22f), glm::vec2(0.0f, -2.34f), glm::vec2(4.72f, -2.22f)
-	};
-	for (const auto& forat : forats)
-		if (glm::length(candidat - forat) < 0.40f) return false;
-	for (int i = 0; i < 15; ++i)
-	{
-		if (!bolesColorActives[i]) continue;
-		if (glm::length(candidat - posicioBolesColor[i]) < 0.24f) return false;
-	}
-	return true;
-}
-
-void CEntornVGIView::MostraEstatPartida(const CString& nota)
-{
-	CFrameWnd* marc = GetParentFrame();
-	if (!marc) return;
-	auto nomGrup = [](int grup) -> CString {
-		if (grup == 1) return _T("Llises");
-		if (grup == 2) return _T("Ratllades");
-		return _T("Sense assignar");
-	};
-	const CString grup1 = nomGrup(partidaDosJugadors.grupJugador(1));
-	const CString grup2 = nomGrup(partidaDosJugadors.grupJugador(2));
-	CString estat;
-	if (partidaDosJugadors.guanyador() != 0)
-		estat.Format(_T("BILLAR 3D | HA GUANYAT EL JUGADOR %d | R: nova partida"), partidaDosJugadors.guanyador());
-	else
-		estat.Format(_T("BILLAR | TORN J%d%s | J1: %s (%d) | J2: %s (%d)"),
-			partidaDosJugadors.jugadorActual(),
-			partidaDosJugadors.blancaEnMa() ? _T(" - BLANCA EN MA") : _T(""),
-			(LPCTSTR)grup1, partidaDosJugadors.bolesRestants(1),
-			(LPCTSTR)grup2, partidaDosJugadors.bolesRestants(2));
-	if (!nota.IsEmpty()) estat += _T(" | ") + nota;
-	marc->SetWindowText(estat);
-	marc->SetMessageText(estat);
 }
 
 void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
@@ -4231,7 +4229,6 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 		}
 		if (dinsTronera)
 		{
-			partidaDosJugadors.registraEmbocada(i);
 			actives[i] = false;
 			velocitats[i] = glm::vec2(0.0f, 0.0f);
 			continue;
@@ -4243,14 +4240,12 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			posicions[i].x = -limitX;
 			if (velocitats[i].x < 0.0f) velocitats[i].x = -velocitats[i].x * restitucioBanda;
 			alertaBandaDetectada = true;
-			partidaDosJugadors.registraBanda();
 		}
 		else if (posicions[i].x > limitX)
 		{
 			posicions[i].x = limitX;
 			if (velocitats[i].x > 0.0f) velocitats[i].x = -velocitats[i].x * restitucioBanda;
 			alertaBandaDetectada = true;
-			partidaDosJugadors.registraBanda();
 		}
 
 		if (posicions[i].y < -limitY)
@@ -4258,14 +4253,12 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			posicions[i].y = -limitY;
 			if (velocitats[i].y < 0.0f) velocitats[i].y = -velocitats[i].y * restitucioBanda;
 			alertaBandaDetectada = true;
-			partidaDosJugadors.registraBanda();
 		}
 		else if (posicions[i].y > limitY)
 		{
 			posicions[i].y = limitY;
 			if (velocitats[i].y > 0.0f) velocitats[i].y = -velocitats[i].y * restitucioBanda;
 			alertaBandaDetectada = true;
-			partidaDosJugadors.registraBanda();
 		}
 	}
 
@@ -4295,8 +4288,6 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			const float velocitatNormal = glm::dot(velocitatRelativa, normal);
 			if (velocitatNormal < 0.0f)
 			{
-				if (i == 0) partidaDosJugadors.registraContacte(j);
-				if (j == 0) partidaDosJugadors.registraContacte(i);
 				const float impuls = -(1.0f + restitucioBoles) * velocitatNormal * 0.5f;
 				velocitats[i] -= impuls * normal;
 				velocitats[j] += impuls * normal;
@@ -4360,34 +4351,13 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		for (int pas = 0; pas < nombrePassos; ++pas)
 			ActualitzaFisicaBillar(pasTemps);
 
-		if (partidaDosJugadors.tirEnCurs() && tirAplicat && !animantTir && BolesAturadesBillar())
+		if (!bolaBlancaActiva)
 		{
-			const ReglesDosJugadors::Resultat resultat = partidaDosJugadors.finalitzaTir();
-			if (resultat == ReglesDosJugadors::Resultat::RepetirTrencada)
-			{
-				ReiniciaBolesBillar();
-				MostraEstatPartida(_T("Negra a la trencada: repetim"));
-			}
-			else
-			{
-				if (!bolaBlancaActiva) RecolocaBolaBlancaBillar();
-				CString nota;
-				if (resultat == ReglesDosJugadors::Resultat::Falta) nota = _T("Falta: canvi de torn");
-				else if (resultat == ReglesDosJugadors::Resultat::CanviTorn) nota = _T("Canvi de torn");
-				else if (resultat == ReglesDosJugadors::Resultat::Continua) nota = _T("Torna a tirar");
-				else if (resultat == ReglesDosJugadors::Resultat::Derrota) nota = _T("Negra abans d'hora o amb falta");
-				MostraEstatPartida(nota);
-				if (partidaDosJugadors.guanyador() != 0)
-				{
-					CString missatge;
-					missatge.Format(_T("Ha guanyat el jugador %d! Prem R per jugar una altra partida."), partidaDosJugadors.guanyador());
-					AfxMessageBox(missatge);
-				}
-			}
-		}
-
-		if (!bolaBlancaActiva && !partidaDosJugadors.tirEnCurs() && BolesAturadesBillar())
+			tempsBolaBlancaFora += deltaTemps;
 			RecolocaBolaBlancaBillar();
+		}
+		else
+			tempsBolaBlancaFora = 0.0f;
 
 		// Comprovem aproximadament cada segon que funciona
 		if (tempsAcumulatBillar >= 1.0f)
@@ -7191,5 +7161,66 @@ void CEntornVGIView::OnCameraSuperior()
 	modeCameraBillar = false;
 	ratoliInicialitzat = false;
 	m_ButoEAvall = false;
+	InvalidateRect(NULL, false);
+}
+
+
+/* ------------------------------------------------------------------------- */
+/*                         MENU PRINCIPAL DEL VIDEOJOC                       */
+/* ------------------------------------------------------------------------- */
+
+// PreparaMenuInicial: Deixa l'aplicacio llesta per mostrar el menu tot just arrencar,
+//   sense haver de passar per les opcions Projeccio -> Perspectiva i Objecte -> Billar.
+//   Es crida un sol cop, des de la primera execucio d'OnPaint().
+void CEntornVGIView::PreparaMenuInicial()
+{
+	// Carrega de shaders: mateixa que fa OnPaint() (branca "default") la primera vegada
+	wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
+
+	if (!eixos_programID) eixos_programID = shaderEixos.loadFileShaders(".\\shaders\\eixos.VERT", ".\\shaders\\eixos.FRAG");
+
+	if (!shader_programID) {
+		shader_programID = shaderLighting.loadFileShaders(".\\shaders\\gouraud_shdrML.vert", ".\\shaders\\gouraud_shdrML.frag");
+		shader = GOURAUD_SHADER;
+	}
+
+	if (!eixos_Id) eixos_Id = deixos();
+
+	glUseProgram(shader_programID);	// Perque OnPaint() ja trobi el programa de l'escena actiu des del primer frame
+	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
+
+	// Fons del menu: la taula de billar en perspectiva, sense els eixos de coordenades
+	eixos = false;
+	projeccio = PERSPECT;
+	mobil = true;	zzoom = true;
+
+	OnObjecteBillar();		// Carrega textures i VAOs del billar i engega el seu rellotge (timer 5000)
+
+	m_menu.MostraPrincipal();
+	m_enMenu = true;
+}
+
+// ComencaPartida: Boto JUGAR del menu
+void CEntornVGIView::ComencaPartida()
+{
+	m_enMenu = false;
+	modeCameraBillar = false;
+	ReiniciaBolesBillar();		// Boles al rack, bola blanca al seu lloc i tac llest
+	SetFocus();
+	InvalidateRect(NULL, false);
+}
+
+// TornaAlMenu: Tecla Esc durant la partida
+void CEntornVGIView::TornaAlMenu()
+{
+	// Cancel.lem un possible tir en preparacio
+	carregantTir = false;
+	m_ButoEAvall = false;
+	ratoliInicialitzat = false;
+	if (::GetCapture() == m_hWnd) ReleaseCapture();
+	modeCameraBillar = false;
+
+	m_menu.MostraPrincipal();
+	m_enMenu = true;
 	InvalidateRect(NULL, false);
 }

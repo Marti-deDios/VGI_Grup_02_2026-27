@@ -206,6 +206,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="glut_geometry.h" />
     <ClInclude Include="MainFrm.h" />
+    <ClInclude Include="MenuBillar.h" />
     <ClInclude Include="objLoader.h" />
     <ClInclude Include="OutputWnd.h" />
     <ClInclude Include="pch.h" />
@@ -227,6 +228,7 @@
     <ClCompile Include="glut_geometry.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="material.cpp" />
+    <ClCompile Include="MenuBillar.cpp" />
     <ClCompile Include="objLoader.cpp" />
     <ClCompile Include="OutputWnd.cpp" />
     <ClCompile Include="pch.cpp">

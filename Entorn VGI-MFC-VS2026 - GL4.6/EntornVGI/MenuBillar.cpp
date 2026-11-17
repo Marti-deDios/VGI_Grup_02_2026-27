@@ -1,0 +1,712 @@
+﻿// MenuBillar.cpp : Menu principal del videojoc de billar 3D (veure MenuBillar.h)
+
+#include "pch.h"
+#include "MenuBillar.h"
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+/* ------------------------------------------------------------------------- */
+/*   TEXTOS I COLORS DEL MENU  (aqui podeu canviar-ho tot sense tocar codi)  */
+/* ------------------------------------------------------------------------- */
+namespace
+{
+	const wchar_t* const TITOL_JOC = L"BILLAR 3D";
+	const wchar_t* const SUBTITOL_JOC = L"Videojoc de billar virtual";
+	const wchar_t* const AJUDA_PRINCIPAL = L"Fes servir el ratolí, o les fletxes i Intro";
+
+	const wchar_t* const ETIQUETES_PRINCIPAL[3] = { L"JUGAR", L"CONTROLS", L"CRÈDITS" };
+	const wchar_t* const ETIQUETA_TORNAR = L"TORNAR";
+
+	// ---- Pantalla CONTROLS: tecla / accio ----
+	struct FilaControl { const wchar_t* tecla; const wchar_t* accio; };
+	const FilaControl CONTROLS[] =
+	{
+		{ L"Moure el ratolí",                  L"Apuntar el tac (esquerra / dreta)" },
+		{ L"A / D   o   fletxes",              L"Girar el tac amb més precisió" },
+		{ L"Botó esquerre + arrossegar avall", L"Carregar la força del cop" },
+		{ L"Deixar anar el botó",              L"Executar el tir" },
+		{ L"Espai",                            L"Tirar amb la força actual" },
+		{ L"1",                                L"Càmera de tir (darrere la bola blanca)" },
+		{ L"2",                                L"Càmera superior" },
+		{ L"V",                                L"Càmera lliure (arrossega i roda per fer zoom)" },
+		{ L"R",                                L"Reiniciar la partida" },
+		{ L"F",                                L"Pantalla completa" },
+		{ L"Esc",                              L"Tornar al menú" },
+	};
+	const int N_CONTROLS = (int)(sizeof(CONTROLS) / sizeof(CONTROLS[0]));
+
+	// ---- Pantalla CREDITS: tipus 0 = espai, 1 = encapçalament, 2 = text normal ----
+	struct LiniaCredits { const wchar_t* text; int tipus; };
+	const LiniaCredits CREDITS[] =
+	{
+		{ L"DESENVOLUPAMENT",                              1 },
+		{ L"[Nom i cognoms 1]",                            2 },
+		{ L"[Nom i cognoms 2]",                            2 },
+		{ L"",                                             0 },
+		{ L"ASSIGNATURA",                                  1 },
+		{ L"Visualització Gràfica Interactiva",            2 },
+		{ L"Escola d'Enginyeria - UAB",                    2 },
+		{ L"",                                             0 },
+		{ L"ENTORN BASE (ENTORN VGI)",                     1 },
+		{ L"Ferran Poveda, Marc Vivet, Carme Julià,",      2 },
+		{ L"Débora Gil i Enric Martí Gòdia",               2 },
+		{ L"",                                             0 },
+		{ L"TECNOLOGIA",                                   1 },
+		{ L"C++  ·  MFC  ·  OpenGL 4.6  ·  GLM  ·  GLEW  ·  SOIL2", 2 },
+	};
+	const int N_CREDITS = (int)(sizeof(CREDITS) / sizeof(CREDITS[0]));
+
+	// ---- Colors (r,g,b,a) ----
+	const float COLOR_DAURAT[4]      = { 1.00f, 0.80f, 0.22f, 1.00f };
+	const float COLOR_BLANC[4]       = { 0.95f, 0.95f, 0.95f, 1.00f };
+	const float COLOR_GRIS[4]        = { 0.72f, 0.78f, 0.74f, 1.00f };
+	const float COLOR_OMBRA[4]       = { 0.00f, 0.00f, 0.00f, 0.65f };
+	const float COLOR_OMBRA_BOTO[4]  = { 0.00f, 0.00f, 0.00f, 0.40f };
+	const float COLOR_BOTO[4]        = { 0.05f, 0.27f, 0.13f, 0.93f };	// Verd tapet
+	const float COLOR_BOTO_SEL[4]    = { 0.10f, 0.52f, 0.25f, 1.00f };
+	const float COLOR_VORA_BOTO[4]   = { 0.55f, 0.42f, 0.15f, 1.00f };	// Fusta
+	const float COLOR_VORA_SEL[4]    = { 1.00f, 0.82f, 0.25f, 1.00f };	// Daurat
+	const float COLOR_PANELL[4]      = { 0.03f, 0.07f, 0.05f, 0.90f };
+	const float COLOR_VORA_PANELL[4] = { 0.55f, 0.42f, 0.15f, 1.00f };
+	const float COLOR_LINIA[4]       = { 1.00f, 0.80f, 0.22f, 0.55f };
+
+	// Mides (en unitats de disseny; es multipliquen per l'escala s)
+	const float CAPCALERA_PANELL = 100.0f;
+	const float ALTURA_FILA_CONTROLS = 40.0f;
+	const float PEU_PANELL = 110.0f;
+
+	float AlturaLiniaCredits(int tipus) { return (tipus == 0) ? 16.0f : 32.0f; }
+
+	float AlturaContingutCredits()
+	{
+		float total = 0.0f;
+		for (int i = 0; i < N_CREDITS; ++i) total += AlturaLiniaCredits(CREDITS[i].tipus);
+		return total;
+	}
+
+	int Px(float mida, float s) { return (std::max)(8, (int)(mida * s + 0.5f)); }
+
+	void Barreja(const float a[4], const float b[4], float t, float sortida[4])
+	{
+		for (int i = 0; i < 4; ++i) sortida[i] = a[i] + (b[i] - a[i]) * t;
+	}
+
+	// GeneraBitmapText: dibuixa el text amb GDI (Segoe UI, antialiasing en gris) i el
+	// converteix a RGBA blanc amb l'alfa = intensitat del text.
+	bool GeneraBitmapText(const std::wstring& text, int pxAlt, bool negreta,
+		std::vector<unsigned char>& rgba, int& ampl, int& alt)
+	{
+		HDC dcPantalla = ::GetDC(NULL);
+		HDC dc = ::CreateCompatibleDC(dcPantalla);
+		::ReleaseDC(NULL, dcPantalla);
+		if (dc == NULL) return false;
+
+		HFONT font = ::CreateFontW(-pxAlt, 0, 0, 0, negreta ? FW_BOLD : FW_NORMAL, FALSE, FALSE, FALSE,
+			DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
+			DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
+		HGDIOBJ fontAnterior = ::SelectObject(dc, font);
+
+		SIZE mida = { 0, 0 };
+		::GetTextExtentPoint32W(dc, text.c_str(), (int)text.size(), &mida);
+		const int marge = 4;
+		ampl = mida.cx + 2 * marge;
+		alt = mida.cy + 2 * marge;
+
+		bool correcte = false;
+		if (mida.cx > 0 && mida.cy > 0 && ampl < 4096 && alt < 1024)
+		{
+			BITMAPINFO bmi;
+			ZeroMemory(&bmi, sizeof(bmi));
+			bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+			bmi.bmiHeader.biWidth = ampl;
+			bmi.bmiHeader.biHeight = -alt;			// Negatiu: fila 0 = part superior
+			bmi.bmiHeader.biPlanes = 1;
+			bmi.bmiHeader.biBitCount = 32;
+			bmi.bmiHeader.biCompression = BI_RGB;
+
+			void* bits = NULL;
+			HBITMAP bmp = ::CreateDIBSection(dc, &bmi, DIB_RGB_COLORS, &bits, NULL, 0);
+			if (bmp != NULL && bits != NULL)
+			{
+				HGDIOBJ bmpAnterior = ::SelectObject(dc, bmp);
+				const size_t nPixels = (size_t)ampl * (size_t)alt;
+				ZeroMemory(bits, nPixels * 4);
+
+				::SetBkMode(dc, TRANSPARENT);
+				::SetTextColor(dc, RGB(255, 255, 255));
+				::TextOutW(dc, marge, marge, text.c_str(), (int)text.size());
+				::GdiFlush();
+
+				const unsigned char* origen = (const unsigned char*)bits;
+				rgba.resize(nPixels * 4);
+				for (size_t i = 0; i < nPixels; ++i)
+				{
+					rgba[4 * i + 0] = 255;
+					rgba[4 * i + 1] = 255;
+					rgba[4 * i + 2] = 255;
+					rgba[4 * i + 3] = origen[4 * i + 1];	// Canal verd = intensitat del text
+				}
+				correcte = true;
+				::SelectObject(dc, bmpAnterior);
+			}
+			if (bmp != NULL) ::DeleteObject(bmp);
+		}
+
+		::SelectObject(dc, fontAnterior);
+		::DeleteObject(font);
+		::DeleteDC(dc);
+		return correcte;
+	}
+
+	GLuint CompilaShader(GLenum tipus, const char* codi)
+	{
+		GLuint shader = glCreateShader(tipus);
+		glShaderSource(shader, 1, &codi, NULL);
+		glCompileShader(shader);
+		GLint ok = 0;
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+		if (!ok)
+		{
+			char registre[1024];
+			glGetShaderInfoLog(shader, sizeof(registre), NULL, registre);
+			::OutputDebugStringA("MenuBillar: error compilant shader:\n");
+			::OutputDebugStringA(registre);
+			glDeleteShader(shader);
+			return 0;
+		}
+		return shader;
+	}
+
+	// ---- Shaders del menu (incrustats al codi: no cal copiar cap fitxer .vert/.frag) ----
+	const char* const VERTEX_MENU = R"GLSL(#version 330 core
+layout(location = 0) in vec2 aPos;
+uniform vec4 uRect;          // x, y, ample, alt (pixels, origen dalt a l'esquerra)
+uniform vec2 uViewport;
+out vec2 vUV;
+void main()
+{
+	vec2 p = uRect.xy + aPos * uRect.zw;
+	gl_Position = vec4(p.x / uViewport.x * 2.0 - 1.0, 1.0 - p.y / uViewport.y * 2.0, 0.0, 1.0);
+	vUV = aPos;
+}
+)GLSL";
+
+	const char* const FRAGMENT_MENU = R"GLSL(#version 330 core
+in vec2 vUV;
+uniform int uMode;           // 0 = color pla, 1 = text (alfa de la textura), 2 = rectangle arrodonit
+uniform vec4 uColor;
+uniform vec4 uColor2;        // Color de la vora (mode 2)
+uniform vec4 uRect;
+uniform float uRadi;
+uniform float uVora;
+uniform sampler2D uTex;
+out vec4 fragColor;
+void main()
+{
+	if (uMode == 1)
+	{
+		float a = texture(uTex, vUV).a;
+		fragColor = vec4(uColor.rgb, uColor.a * a);
+	}
+	else if (uMode == 2)
+	{
+		vec2 mig = uRect.zw * 0.5;
+		vec2 p = (vUV - 0.5) * uRect.zw;
+		vec2 d = abs(p) - (mig - vec2(uRadi));
+		float dist = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - uRadi;
+		float cobert = 1.0 - smoothstep(-1.0, 0.0, dist);
+		float vora = smoothstep(-uVora - 1.0, -uVora, dist);
+		vec3 col = mix(uColor.rgb, uColor2.rgb, vora);
+		float alfa = mix(uColor.a, uColor2.a, vora);
+		fragColor = vec4(col, alfa * cobert);
+	}
+	else
+	{
+		fragColor = uColor;
+	}
+}
+)GLSL";
+}
+
+/* ------------------------------------------------------------------------- */
+/*                         ESTAT I ENTRADA (RATOLI / TECLAT)                 */
+/* ------------------------------------------------------------------------- */
+
+void CMenuBillar::MostraPrincipal()
+{
+	m_pantalla = PANT_PRINCIPAL;
+	m_seleccio = 0;
+	m_ultimaOpcio = 0;
+	m_premut = -1;
+	m_anim[0] = m_anim[1] = m_anim[2] = 0.0f;
+}
+
+void CMenuBillar::TornaEnrere()
+{
+	m_pantalla = PANT_PRINCIPAL;
+	m_seleccio = m_ultimaOpcio;
+	m_premut = -1;
+	m_anim[0] = m_anim[1] = m_anim[2] = 0.0f;
+}
+
+CMenuBillar::Accio CMenuBillar::ExecutaBoto(int index)
+{
+	if (index < 0) return ACCIO_CAP;
+
+	if (m_pantalla == PANT_PRINCIPAL)
+	{
+		m_ultimaOpcio = index;
+		if (index == 0) return ACCIO_JUGAR;
+
+		m_pantalla = (index == 1) ? PANT_CONTROLS : PANT_CREDITS;
+		m_seleccio = 0;		// L'unic boto de la pantalla es TORNAR
+		m_premut = -1;
+		m_anim[0] = m_anim[1] = m_anim[2] = 0.0f;
+		return ACCIO_CAP;
+	}
+
+	TornaEnrere();
+	return ACCIO_CAP;
+}
+
+int CMenuBillar::BotoSota(float x, float y, const Disseny& d) const
+{
+	for (int i = 0; i < d.nBotons; ++i)
+		if (d.boto[i].Conte(x, y)) return i;
+	return -1;
+}
+
+void CMenuBillar::RatoliMou(int x, int y, int ampladaFinestra, int alcadaFinestra)
+{
+	Disseny d;
+	CalculaDisseny(ampladaFinestra, alcadaFinestra, d);
+	const int i = BotoSota((float)x, (float)y, d);
+	if (i >= 0) m_seleccio = i;
+}
+
+void CMenuBillar::RatoliPrem(int x, int y, int ampladaFinestra, int alcadaFinestra)
+{
+	Disseny d;
+	CalculaDisseny(ampladaFinestra, alcadaFinestra, d);
+	m_premut = BotoSota((float)x, (float)y, d);
+	if (m_premut >= 0) m_seleccio = m_premut;
+}
+
+CMenuBillar::Accio CMenuBillar::RatoliSolta(int x, int y, int ampladaFinestra, int alcadaFinestra)
+{
+	Disseny d;
+	CalculaDisseny(ampladaFinestra, alcadaFinestra, d);
+	const int sota = BotoSota((float)x, (float)y, d);
+	const int premut = m_premut;
+	m_premut = -1;
+
+	// Nomes s'activa si s'ha premut i deixat anar sobre el mateix boto
+	if (sota >= 0 && sota == premut) return ExecutaBoto(sota);
+	return ACCIO_CAP;
+}
+
+CMenuBillar::Accio CMenuBillar::TeclaPremuda(UINT nChar)
+{
+	const int n = (m_pantalla == PANT_PRINCIPAL) ? 3 : 1;
+
+	switch (nChar)
+	{
+	case VK_UP:
+	case 'W':
+		m_seleccio = (m_seleccio + n - 1) % n;
+		break;
+	case VK_DOWN:
+	case 'S':
+		m_seleccio = (m_seleccio + 1) % n;
+		break;
+	case VK_RETURN:
+	case VK_SPACE:
+		return ExecutaBoto(m_seleccio);
+	case VK_ESCAPE:
+	case VK_BACK:
+		if (m_pantalla != PANT_PRINCIPAL) TornaEnrere();
+		break;
+	}
+	return ACCIO_CAP;
+}
+
+/* ------------------------------------------------------------------------- */
+/*                                   DISSENY                                 */
+/* ------------------------------------------------------------------------- */
+
+void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
+{
+	d.w = (float)w;
+	d.h = (float)h;
+
+	float s = (std::min)(h / 760.0f, w / 1100.0f);
+	s = (std::max)(0.5f, (std::min)(2.5f, s));
+	d.s = s;
+
+	d.nBotons = 0;
+	d.panell = Rect{ 0.0f, 0.0f, 0.0f, 0.0f };
+	d.titolY = d.subtitolY = 0.0f;
+	for (int i = 0; i < 3; ++i) d.boto[i] = Rect{ 0.0f, 0.0f, 0.0f, 0.0f };
+
+	if (m_pantalla == PANT_PRINCIPAL)
+	{
+		const float ampladaBoto = 340.0f * s;
+		const float alcadaBoto = 64.0f * s;
+		const float separacio = 22.0f * s;
+		const float dalt = (d.h - 470.0f * s) * 0.5f;		// Conjunt titol + botons centrat
+
+		d.titolY = dalt + 75.0f * s;
+		d.subtitolY = dalt + 170.0f * s;
+		d.nBotons = 3;
+
+		float y = dalt + 230.0f * s;
+		for (int i = 0; i < 3; ++i)
+		{
+			d.boto[i] = Rect{ (d.w - ampladaBoto) * 0.5f, y, ampladaBoto, alcadaBoto };
+			y += alcadaBoto + separacio;
+		}
+	}
+	else
+	{
+		const bool controls = (m_pantalla == PANT_CONTROLS);
+		const float contingut = controls ? N_CONTROLS * ALTURA_FILA_CONTROLS : AlturaContingutCredits();
+		const float ampladaPanell = (controls ? 1000.0f : 760.0f) * s;
+		const float alcadaPanell = (CAPCALERA_PANELL + contingut + PEU_PANELL) * s;
+
+		d.panell = Rect{ (d.w - ampladaPanell) * 0.5f, (d.h - alcadaPanell) * 0.5f, ampladaPanell, alcadaPanell };
+		d.nBotons = 1;
+		d.boto[0] = Rect{ (d.w - 260.0f * s) * 0.5f, d.panell.y + alcadaPanell - 84.0f * s, 260.0f * s, 56.0f * s };
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+/*                                    DIBUIX                                 */
+/* ------------------------------------------------------------------------- */
+
+void CMenuBillar::Dibuixa(int w, int h)
+{
+	if (w <= 0 || h <= 0) return;
+	if (!InicialitzaGL()) return;
+
+	// ---- Temps per a l'animacio de ressaltat ----
+	const ULONGLONG ara = GetTickCount64();
+	float dt = (m_ultimTemps == 0) ? 0.016f : (float)(ara - m_ultimTemps) / 1000.0f;
+	m_ultimTemps = ara;
+	dt = (std::min)(dt, 0.1f);
+
+	// Les textures depenen de la mida de la finestra: es regeneren quan canvia
+	if (w != m_ampladaAnt || h != m_alcadaAnt)
+	{
+		NetejaTextos();
+		m_ampladaAnt = w;
+		m_alcadaAnt = h;
+	}
+
+	Disseny d;
+	CalculaDisseny(w, h, d);
+
+	for (int i = 0; i < 3; ++i)
+	{
+		const float objectiu = (i == m_seleccio && i < d.nBotons) ? 1.0f : 0.0f;
+		m_anim[i] += (objectiu - m_anim[i]) * (std::min)(1.0f, dt * 14.0f);
+	}
+
+	// ---- Guardem l'estat OpenGL que modifiquem, per no alterar l'escena 3D ----
+	GLint programaAnt = 0, textureAnt = 0, unitatAnt = 0;
+	GLint blendSrcRGB = 0, blendDstRGB = 0, blendSrcA = 0, blendDstA = 0;
+	glGetIntegerv(GL_CURRENT_PROGRAM, &programaAnt);
+	glGetIntegerv(GL_ACTIVE_TEXTURE, &unitatAnt);
+	glActiveTexture(GL_TEXTURE0);
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &textureAnt);
+	glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRGB);
+	glGetIntegerv(GL_BLEND_DST_RGB, &blendDstRGB);
+	glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendSrcA);
+	glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDstA);
+	const GLboolean teDepth = glIsEnabled(GL_DEPTH_TEST);
+	const GLboolean teCull = glIsEnabled(GL_CULL_FACE);
+	const GLboolean teBlend = glIsEnabled(GL_BLEND);
+	const GLboolean teScissor = glIsEnabled(GL_SCISSOR_TEST);
+
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glViewport(0, 0, w, h);
+
+	glUseProgram(m_programa);
+	glUniform2f(m_uViewport, (float)w, (float)h);
+	glUniform1i(m_uTex, 0);
+	glBindVertexArray(m_vao);
+
+	// ---- Vel fosc sobre l'escena 3D perque el text es llegeixi be ----
+	const float vel[4] = { 0.0f, 0.0f, 0.0f, (m_pantalla == PANT_PRINCIPAL) ? 0.42f : 0.65f };
+	glUniform1i(m_uMode, 0);
+	Pla(0.0f, 0.0f, d.w, d.h, vel);
+
+	switch (m_pantalla)
+	{
+	case PANT_PRINCIPAL: DibuixaPrincipal(d); break;
+	case PANT_CONTROLS:  DibuixaControls(d);  break;
+	case PANT_CREDITS:   DibuixaCredits(d);   break;
+	}
+
+	// ---- Restaurem l'estat OpenGL ----
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, (GLuint)textureAnt);
+	glActiveTexture((GLenum)unitatAnt);
+	glUseProgram((GLuint)programaAnt);
+	glBlendFuncSeparate((GLenum)blendSrcRGB, (GLenum)blendDstRGB, (GLenum)blendSrcA, (GLenum)blendDstA);
+	if (!teBlend) glDisable(GL_BLEND);
+	if (teDepth) glEnable(GL_DEPTH_TEST);
+	if (teCull) glEnable(GL_CULL_FACE);
+	if (teScissor) glEnable(GL_SCISSOR_TEST);
+}
+
+void CMenuBillar::DibuixaPrincipal(const Disseny& d)
+{
+	const float s = d.s;
+	const float centreX = d.w * 0.5f;
+
+	// Titol amb ombra
+	const int pxTitol = Px(112.0f, s);
+	DibuixaText(TITOL_JOC, centreX + 4.0f * s, d.titolY + 5.0f * s, pxTitol, true, COLOR_OMBRA, 1);
+	DibuixaText(TITOL_JOC, centreX, d.titolY, pxTitol, true, COLOR_DAURAT, 1);
+	DibuixaText(SUBTITOL_JOC, centreX, d.subtitolY, Px(28.0f, s), false, COLOR_GRIS, 1);
+
+	for (int i = 0; i < 3; ++i)
+		DibuixaBoto(d.boto[i], ETIQUETES_PRINCIPAL[i], m_anim[i], s);
+
+	DibuixaText(AJUDA_PRINCIPAL, centreX, d.h - 30.0f * s, Px(18.0f, s), false, COLOR_GRIS, 1);
+}
+
+void CMenuBillar::DibuixaControls(const Disseny& d)
+{
+	const float s = d.s;
+	const Rect& p = d.panell;
+
+	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
+	DibuixaText(L"CONTROLS", d.w * 0.5f, p.y + 48.0f * s, Px(50.0f, s), true, COLOR_DAURAT, 1);
+	Pla(p.x + 40.0f * s, p.y + 90.0f * s, p.w - 80.0f * s, 2.0f * s, COLOR_LINIA);
+
+	const float xTecla = p.x + 40.0f * s;
+	const float xAccio = p.x + 420.0f * s;
+	for (int i = 0; i < N_CONTROLS; ++i)
+	{
+		const float yc = p.y + (CAPCALERA_PANELL + ALTURA_FILA_CONTROLS * (i + 0.5f)) * s;
+		DibuixaText(CONTROLS[i].tecla, xTecla, yc, Px(22.0f, s), true, COLOR_DAURAT, 0);
+		DibuixaText(CONTROLS[i].accio, xAccio, yc, Px(22.0f, s), false, COLOR_BLANC, 0);
+	}
+
+	DibuixaBoto(d.boto[0], ETIQUETA_TORNAR, m_anim[0], s);
+}
+
+void CMenuBillar::DibuixaCredits(const Disseny& d)
+{
+	const float s = d.s;
+	const Rect& p = d.panell;
+
+	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
+	DibuixaText(L"CRÈDITS", d.w * 0.5f, p.y + 48.0f * s, Px(50.0f, s), true, COLOR_DAURAT, 1);
+	Pla(p.x + 40.0f * s, p.y + 90.0f * s, p.w - 80.0f * s, 2.0f * s, COLOR_LINIA);
+
+	float y = p.y + CAPCALERA_PANELL * s;
+	for (int i = 0; i < N_CREDITS; ++i)
+	{
+		const float alcada = AlturaLiniaCredits(CREDITS[i].tipus) * s;
+		if (CREDITS[i].tipus == 1)
+			DibuixaText(CREDITS[i].text, d.w * 0.5f, y + alcada * 0.5f, Px(20.0f, s), true, COLOR_DAURAT, 1);
+		else if (CREDITS[i].tipus == 2)
+			DibuixaText(CREDITS[i].text, d.w * 0.5f, y + alcada * 0.5f, Px(24.0f, s), false, COLOR_BLANC, 1);
+		y += alcada;
+	}
+
+	DibuixaBoto(d.boto[0], ETIQUETA_TORNAR, m_anim[0], s);
+}
+
+void CMenuBillar::DibuixaBoto(const Rect& r, const wchar_t* etiqueta, float anim, float s)
+{
+	// El boto creix una mica quan esta ressaltat
+	const float creix = 6.0f * s * anim;
+	const Rect rr = { r.x - creix, r.y - creix * 0.5f, r.w + 2.0f * creix, r.h + creix };
+
+	float fons[4], vora[4];
+	Barreja(COLOR_BOTO, COLOR_BOTO_SEL, anim, fons);
+	Barreja(COLOR_VORA_BOTO, COLOR_VORA_SEL, anim, vora);
+
+	const Rect ombra = { rr.x, rr.y + 5.0f * s, rr.w, rr.h };
+	RectArrodonit(ombra, COLOR_OMBRA_BOTO, COLOR_OMBRA_BOTO, 14.0f * s, 0.0f);
+	RectArrodonit(rr, fons, vora, 14.0f * s, 2.5f * s);
+
+	float colorText[4];
+	Barreja(COLOR_BLANC, COLOR_DAURAT, anim, colorText);
+	DibuixaText(etiqueta, rr.x + rr.w * 0.5f, rr.y + rr.h * 0.5f, Px(28.0f, s), true, colorText, 1);
+}
+
+/* ------------------------------------------------------------------------- */
+/*                         PRIMITIVES 2D (OpenGL)                            */
+/* ------------------------------------------------------------------------- */
+
+bool CMenuBillar::InicialitzaGL()
+{
+	if (m_programa != 0) return true;
+	if (m_errorGL) return false;
+
+	const GLuint vs = CompilaShader(GL_VERTEX_SHADER, VERTEX_MENU);
+	const GLuint fs = CompilaShader(GL_FRAGMENT_SHADER, FRAGMENT_MENU);
+	if (vs == 0 || fs == 0)
+	{
+		if (vs != 0) glDeleteShader(vs);
+		if (fs != 0) glDeleteShader(fs);
+		m_errorGL = true;
+		return false;
+	}
+
+	GLuint programa = glCreateProgram();
+	glAttachShader(programa, vs);
+	glAttachShader(programa, fs);
+	glLinkProgram(programa);
+	glDeleteShader(vs);
+	glDeleteShader(fs);
+
+	GLint ok = 0;
+	glGetProgramiv(programa, GL_LINK_STATUS, &ok);
+	if (!ok)
+	{
+		char registre[1024];
+		glGetProgramInfoLog(programa, sizeof(registre), NULL, registre);
+		::OutputDebugStringA("MenuBillar: error enllacant el programa:\n");
+		::OutputDebugStringA(registre);
+		glDeleteProgram(programa);
+		m_errorGL = true;
+		return false;
+	}
+
+	m_uRect = glGetUniformLocation(programa, "uRect");
+	m_uViewport = glGetUniformLocation(programa, "uViewport");
+	m_uMode = glGetUniformLocation(programa, "uMode");
+	m_uColor = glGetUniformLocation(programa, "uColor");
+	m_uColor2 = glGetUniformLocation(programa, "uColor2");
+	m_uRadi = glGetUniformLocation(programa, "uRadi");
+	m_uVora = glGetUniformLocation(programa, "uVora");
+	m_uTex = glGetUniformLocation(programa, "uTex");
+
+	// Quadrat unitat (0..1) com a TRIANGLE_STRIP
+	const float vertexs[8] = { 0.0f, 0.0f,  1.0f, 0.0f,  0.0f, 1.0f,  1.0f, 1.0f };
+
+	GLint vaoAnt = 0, vboAnt = 0;
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vaoAnt);
+	glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &vboAnt);
+
+	glGenVertexArrays(1, &m_vao);
+	glGenBuffers(1, &m_vbo);
+	glBindVertexArray(m_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertexs), vertexs, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (const void*)0);
+
+	glBindVertexArray((GLuint)vaoAnt);
+	glBindBuffer(GL_ARRAY_BUFFER, (GLuint)vboAnt);
+
+	m_programa = programa;
+	return true;
+}
+
+void CMenuBillar::Allibera()
+{
+	NetejaTextos();
+	if (m_vbo != 0) { glDeleteBuffers(1, &m_vbo); m_vbo = 0; }
+	if (m_vao != 0) { glDeleteVertexArrays(1, &m_vao); m_vao = 0; }
+	if (m_programa != 0) { glDeleteProgram(m_programa); m_programa = 0; }
+	m_errorGL = false;
+}
+
+void CMenuBillar::Pla(float x, float y, float w, float h, const float color[4])
+{
+	glUniform1i(m_uMode, 0);
+	glUniform4f(m_uRect, x, y, w, h);
+	glUniform4fv(m_uColor, 1, color);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void CMenuBillar::RectArrodonit(const Rect& r, const float colorFons[4], const float colorVora[4],
+	float radi, float gruixVora)
+{
+	glUniform1i(m_uMode, 2);
+	glUniform4f(m_uRect, r.x, r.y, r.w, r.h);
+	glUniform4fv(m_uColor, 1, colorFons);
+	glUniform4fv(m_uColor2, 1, colorVora);
+	glUniform1f(m_uRadi, radi);
+	glUniform1f(m_uVora, gruixVora);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void CMenuBillar::DibuixaText(const std::wstring& text, float x, float yCentre, int pxAlt, bool negreta,
+	const float color[4], int alineacio)
+{
+	if (text.empty()) return;
+	const Text* t = ObteText(text, pxAlt, negreta);
+	if (t == NULL) return;
+
+	float x0 = x;
+	if (alineacio == 1) x0 = x - t->w * 0.5f;
+	else if (alineacio == 2) x0 = x - (float)t->w;
+
+	// Ajust vertical: yCentre es el centre visual de les lletres (no de la caixa de la textura)
+	float y0 = yCentre - 4.0f - 0.76f * (float)pxAlt;
+
+	x0 = std::floor(x0 + 0.5f);
+	y0 = std::floor(y0 + 0.5f);
+
+	glBindTexture(GL_TEXTURE_2D, t->tex);
+	glUniform1i(m_uMode, 1);
+	glUniform4f(m_uRect, x0, y0, (float)t->w, (float)t->h);
+	glUniform4fv(m_uColor, 1, color);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+const CMenuBillar::Text* CMenuBillar::ObteText(const std::wstring& text, int pxAlt, bool negreta)
+{
+	const std::wstring clau = text + L"|" + std::to_wstring(pxAlt) + (negreta ? L"B" : L"N");
+	std::map<std::wstring, Text>::iterator it = m_textos.find(clau);
+	if (it != m_textos.end()) return &it->second;
+
+	std::vector<unsigned char> pixels;
+	int ampl = 0, alt = 0;
+	if (!GeneraBitmapText(text, pxAlt, negreta, pixels, ampl, alt)) return NULL;
+
+	if (m_textos.size() > 200) NetejaTextos();		// Evita que la cache creixi sense limit
+
+	Text t;
+	t.w = ampl;
+	t.h = alt;
+	t.tex = 0;
+
+	GLint textureAnt = 0, alineacioAnt = 4;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &textureAnt);
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &alineacioAnt);
+
+	glGenTextures(1, &t.tex);
+	glBindTexture(GL_TEXTURE_2D, t.tex);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ampl, alt, 0, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, alineacioAnt);
+	glBindTexture(GL_TEXTURE_2D, (GLuint)textureAnt);
+
+	std::pair<std::map<std::wstring, Text>::iterator, bool> r = m_textos.insert(std::make_pair(clau, t));
+	return &r.first->second;
+}
+
+void CMenuBillar::NetejaTextos()
+{
+	for (std::map<std::wstring, Text>::iterator it = m_textos.begin(); it != m_textos.end(); ++it)
+		if (it->second.tex != 0) glDeleteTextures(1, &it->second.tex);
+	m_textos.clear();
+}

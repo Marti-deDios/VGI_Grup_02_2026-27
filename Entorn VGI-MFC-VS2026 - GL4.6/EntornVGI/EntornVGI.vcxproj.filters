@@ -57,6 +57,9 @@
     <ClInclude Include="objLoader.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
+    <ClInclude Include="MenuBillar.h">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
     <ClInclude Include="constants.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
@@ -108,6 +111,9 @@
       <Filter>Archivos de origen</Filter>
     </ClCompile>
     <ClCompile Include="objLoader.cpp">
+      <Filter>Archivos de origen</Filter>
+    </ClCompile>
+    <ClCompile Include="MenuBillar.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
     <ClCompile Include="visualitzacio.cpp">

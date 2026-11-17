@@ -1464,4 +1464,4 @@ void Cabina(GLint shaderId, glm::mat4 MatriuTG, bool sw_mat[5])
 	draw_TriEBO_Object(GLUT_USER5); //gluCylinder(1.5f, 4.5f, 2.0f, 8, 1);
 	//glPopMatrix();
 }
-// FI OBJECTE TIE: FETS PER ALUMNES -----------------------------------------------------------------
+// FI OBJECTE TIE: FETS PER ALUMNES -------------------------------git clean -fd----------------------------------
