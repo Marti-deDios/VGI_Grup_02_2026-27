@@ -685,8 +685,11 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		if (mostrarTac && bolaBlancaActiva)
 		{
 			glm::mat4 baseTac = glm::translate(MatriuTG,
-				vec3(posicioBolaBlancaX, posicioBolaBlancaY, alturaTapetZ));
+				vec3(posicioBolaBlancaX, posicioBolaBlancaY, alturaTapetZ - 0.05f));
 			baseTac = glm::rotate(baseTac, angleTac, vec3(0.0f, 0.0f, 1.0f));
+			const float inclinacioTac = radians(7.0f);
+			glm::mat4 transformTac = glm::rotate(baseTac,
+				inclinacioTac, vec3(0.0f, 1.0f, 0.0f));
 
 			CColor blancPunta = { 0.88f, 0.91f, 0.86f, 1.0f };
 			CColor fustaTac = { 0.78f, 0.55f, 0.30f, 1.0f };
@@ -695,25 +698,25 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			bool materialTac[5] = { false, true, true, true, true };
 
 			SeleccionaColorMaterial(sh_programID, blancPunta, materialTac);
-			ModelMatrix = glm::translate(baseTac, vec3(-0.18f - desplacamentTac, 0.0f, 0.12f));
+			ModelMatrix = glm::translate(transformTac, vec3(-0.18f - desplacamentTac, 0.0f, 0.12f));
 			ModelMatrix = glm::scale(ModelMatrix, vec3(0.06f, 0.045f, 0.045f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 
 			SeleccionaColorMaterial(sh_programID, fustaTac, materialTac);
-			ModelMatrix = glm::translate(baseTac, vec3(-0.83f - desplacamentTac, 0.0f, 0.14f));
+			ModelMatrix = glm::translate(transformTac, vec3(-0.83f - desplacamentTac, 0.0f, 0.14f));
 			ModelMatrix = glm::scale(ModelMatrix, vec3(1.25f, 0.055f, 0.055f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 
 			SeleccionaColorMaterial(sh_programID, plataTac, materialTac);
-			ModelMatrix = glm::translate(baseTac, vec3(-1.48f - desplacamentTac, 0.0f, 0.14f));
+			ModelMatrix = glm::translate(transformTac, vec3(-1.48f - desplacamentTac, 0.0f, 0.14f));
 			ModelMatrix = glm::scale(ModelMatrix, vec3(0.06f, 0.083f, 0.083f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 
 			SeleccionaColorMaterial(sh_programID, gomaTac, materialTac);
-			ModelMatrix = glm::translate(baseTac, vec3(-1.77f - desplacamentTac, 0.0f, 0.14f));
+			ModelMatrix = glm::translate(transformTac, vec3(-1.77f - desplacamentTac, 0.0f, 0.14f));
 			ModelMatrix = glm::scale(ModelMatrix, vec3(0.54f, 0.092f, 0.092f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
