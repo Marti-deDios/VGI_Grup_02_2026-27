@@ -1256,6 +1256,22 @@ void CEntornVGIView::dibuixa_Escena()
 	//	GTMatrix = glm::scale();
 
 	//	Dibuix geometria de l'escena amb comandes GL.
+	// El tac recula segons la potencia triada, arriba a la blanca quan
+	// s'aplica l'impuls i despres es retira per no travessar-la visualment.
+	float desplacamentTac = 0.0f;
+	if (carregantTir)
+		desplacamentTac = 0.04f + velocitatTacPunta * 0.30f;
+	else if (animantTir)
+	{
+		const float recorregutReculada = 0.04f + velocitatTacPunta * 0.30f;
+		if (tempsAnimacioTac < 0.15f)
+			desplacamentTac = recorregutReculada * (1.0f - tempsAnimacioTac / 0.15f);
+		else
+		{
+			const float progrRetirada = (std::min)(1.0f, (tempsAnimacioTac - 0.15f) / 0.17f);
+			desplacamentTac = 0.08f * (std::max)(0.0f, progrRetirada);
+		}
+	}
 	dibuixa_EscenaGL(shader_programID, eixos, eixos_Id, grid, hgrid, objecte, col_obj, sw_material,
 		textura, texturesID, textura_map, tFlag_invert_Y,
 		npts_T, PC_t, pas_CS, sw_Punts_Control, dibuixa_TriedreFrenet,
@@ -1263,8 +1279,7 @@ void CEntornVGIView::dibuixa_Escena()
 		GTMatrix, texturesBoles,
 		posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca, bolaBlancaActiva,
 		posicioBolesColor, rotacioBolesColor, bolesColorActives,
-		angleTac, carregantTir ? (forcaTir - 2.0f) * 0.10f :
-		(animantTir ? (0.28f - tempsAnimacioTac * 1.6f) : 0.0f),
+		angleTac, desplacamentTac,
 		bolaBlancaActiva && (BolesAturadesBillar() || animantTir));
 }
 
@@ -1637,6 +1652,9 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		if (nChar == VK_SPACE)
 		{
+			// Velocitat mitjana del tac (m/s); la massa i la restitucio
+			// determinen despres la velocitat de la blanca.
+			velocitatTacPunta = 2.05f;
 			ComencaTirBillar();
 			return;
 		}
@@ -3504,7 +3522,7 @@ void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 		if (BolesAturadesBillar() && bolaBlancaActiva && !animantTir)
 		{
 			carregantTir = true;
-			forcaTir = 3.0f;
+			velocitatTacPunta = 0.0f;
 			puntIniciCarrega = point;
 			ultimPuntRatoli = point;
 			ratoliInicialitzat = true;
@@ -3534,7 +3552,15 @@ void CEntornVGIView::OnLButtonUp(UINT nFlags, CPoint point)
 		{
 			carregantTir = false;
 			if (::GetCapture() == m_hWnd) ReleaseCapture();
-			if (point.y - puntIniciCarrega.y >= 8)
+			const float dx = static_cast<float>(point.x - puntIniciCarrega.x);
+			const float dy = static_cast<float>(point.y - puntIniciCarrega.y);
+			const float distanciaArrossegament = std::sqrt(dx * dx + dy * dy);
+			const float arrossegamentUtil = (std::max)(0.0f, distanciaArrossegament - 8.0f);
+			// 8 px de zona morta i 500 px utilitzables fins a la potencia maxima (2.5 unitats/s).
+			// Es mesura la distancia 2D: el ratoli pot arrossegar-se amunt, avall
+			// o en diagonal, i el moviment es reflecteix directament en el tac.
+			velocitatTacPunta = (std::min)(3.5f, arrossegamentUtil * 0.006f);
+			if (velocitatTacPunta > 0.01f)
 				ComencaTirBillar();
 			else
 				InvalidateRect(NULL, false);
@@ -3628,8 +3654,12 @@ void CEntornVGIView::OnMouseMove(UINT nFlags, CPoint point)
 		}
 		if (carregantTir)
 		{
-			const float arrossegament = static_cast<float>(point.y - puntIniciCarrega.y);
-			forcaTir = (std::max)(1.0f, (std::min)(8.0f, 3.0f + arrossegament * 0.035f));
+			const float dx = static_cast<float>(point.x - puntIniciCarrega.x);
+			const float dy = static_cast<float>(point.y - puntIniciCarrega.y);
+			const float distanciaArrossegament = std::sqrt(dx * dx + dy * dy);
+			const float arrossegamentUtil = (std::max)(0.0f, distanciaArrossegament - 8.0f);
+			// Mateix calcul que durant el moviment; maximitzat als 508 px totals (2.5 unitats/s).
+			velocitatTacPunta = (std::min)(2.5f, arrossegamentUtil * 0.0050f);
 			InvalidateRect(NULL, false);
 		}
 		else if (BolesAturadesBillar() && !animantTir)
@@ -3976,7 +4006,7 @@ BOOL CEntornVGIView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 /* ------------------------------------------------------------------------- */
 bool CEntornVGIView::BolesAturadesBillar() const
 {
-	const float llindar = 0.015f * 0.015f;
+	const float llindar = 0.010f * 0.010f;
 	if (bolaBlancaActiva &&
 		velocitatBolaBlancaX * velocitatBolaBlancaX +
 		velocitatBolaBlancaY * velocitatBolaBlancaY > llindar)
@@ -3989,7 +4019,8 @@ bool CEntornVGIView::BolesAturadesBillar() const
 
 void CEntornVGIView::ComencaTirBillar()
 {
-	if (objecte != BILLAR || !bolaBlancaActiva || !BolesAturadesBillar() || animantTir || carregantTir || !partidaDosJugadors.potTirar())
+	if (objecte != BILLAR || !bolaBlancaActiva || !BolesAturadesBillar() || animantTir || carregantTir ||
+		velocitatTacPunta <= 0.01f || !partidaDosJugadors.potTirar())
 		return;
 	if (!partidaDosJugadors.iniciaTir()) return;
 	animantTir = true;
@@ -4004,13 +4035,15 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	// La bola blanca comenca alineada amb el centre del rack per fer el primer xoc.
 	posicioBolaBlancaX = -3.0f;
 	posicioBolaBlancaY = 0.0f;
+	acumuladorFisicaBillar = 0.0f;
 	velocitatBolaBlancaX = 0.0f;
 	velocitatBolaBlancaY = 0.0f;
 	rotacioBolaBlanca = glm::mat4(1.0f);
 	bolaBlancaActiva = true;
 	tempsBolaBlancaFora = 0.0f;
 
-	// Mateixa disposicio triangular que ja es dibuixava a escena.cpp.
+	// Disposicio triangular exacta: esfera de radi 0.2 escalada per 0.55.
+	// Els centres de boles veines queden separats exactament un diametre.
 	const int ordenRack[15] = {
 		1,
 		11, 3,
@@ -4019,11 +4052,12 @@ void CEntornVGIView::ReiniciaBolesBillar()
 		2, 14, 4, 15, 10
 	};
 
-	const float escalaBola = 0.55f;
+	const float radiBola = 0.2f * 0.55f;
+	const float diametre = 2.0f * radiBola;
 	const float startX = 2.6f;
 	const float startY = 0.0f;
-	const float dX = escalaBola * 0.4f;
-	const float dY = escalaBola * 0.5f;
+	const float separacioFilesX = diametre * 0.8660254038f; // sqrt(3) / 2
+	const float separacioBolesY = diametre;
 
 	for (int i = 0; i < 15; ++i)
 	{
@@ -4036,11 +4070,10 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	int index = 0;
 	for (int fila = 0; fila < 5; ++fila)
 	{
-		const float posX = startX + fila * dX;
-		const float posYIni = startY + fila * (dY * 0.5f);
+		const float posX = startX + fila * separacioFilesX;
 		for (int b = 0; b <= fila; ++b)
 		{
-			const float posY = posYIni - b * dY;
+			const float posY = startY + (b - fila * 0.5f) * separacioBolesY;
 			const int numBola = ordenRack[index++];
 			const int indiceBola = numBola - 1;
 			posicioBolesColor[indiceBola] = glm::vec2(posX, posY);
@@ -4049,7 +4082,7 @@ void CEntornVGIView::ReiniciaBolesBillar()
 
 	alertaBandaDetectada = false;
 	angleTac = 0.0f;
-	forcaTir = 3.0f;
+	velocitatTacPunta = 0.0f;
 	tempsAnimacioTac = 0.0f;
 	carregantTir = false;
 	animantTir = false;
@@ -4064,7 +4097,8 @@ void CEntornVGIView::RecolocaBolaBlancaBillar()
 	if (bolaBlancaActiva || (!BolesAturadesBillar() && tempsBolaBlancaFora < 1.5f))
 		return;
 
-	const float separacioMinima2 = 0.26f * 0.26f;
+	const float separacioMinima = 0.222f;
+	const float separacioMinima2 = separacioMinima * separacioMinima;
 	for (int fila = 0; fila < 11; ++fila)
 	{
 		const float y = fila == 0 ? 0.0f :
@@ -4092,7 +4126,7 @@ void CEntornVGIView::RecolocaBolaBlancaBillar()
 			rotacioBolaBlanca = glm::mat4(1.0f);
 			bolaBlancaActiva = true;
 			tempsBolaBlancaFora = 0.0f;
-			forcaTir = 3.0f;
+			velocitatTacPunta = 0.0f;
 			return;
 		}
 	}
@@ -4112,7 +4146,7 @@ bool CEntornVGIView::PotMoureBlanca(float x, float y) const
 	for (int i = 0; i < 15; ++i)
 	{
 		if (!bolesColorActives[i]) continue;
-		if (glm::length(candidat - posicioBolesColor[i]) < 0.24f) return false;
+		if (glm::length(candidat - posicioBolesColor[i]) < 0.222f) return false;
 	}
 	return true;
 }
@@ -4125,7 +4159,7 @@ void CEntornVGIView::MostraEstatPartida(const CString& nota)
 		if (grup == 1) return _T("Llises");
 		if (grup == 2) return _T("Ratllades");
 		return _T("Sense assignar");
-	};
+		};
 	const CString grup1 = nomGrup(partidaDosJugadors.grupJugador(1));
 	const CString grup2 = nomGrup(partidaDosJugadors.grupJugador(2));
 	CString estat;
@@ -4153,22 +4187,28 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 		return;
 	}
 
-	// Radi de la bola: esfera creada amb radi 0.2 i escalada per 0.55.
+	// Geometria coherent amb el dibuix: esfera GLUT de radi 0.2, escala 0.55.
 	const float radi = 0.11f;
 	const float diametre = 2.0f * radi;
 
-	// Cares interiors dels coixins verds (cub unitari escalat a escena.cpp).
+	// Limits interiors dels coixins: x = +/-4.84 i y = +/-2.34.
 	const float limitX = 4.84f - radi;
 	const float limitY = 2.34f - radi;
 
-	const float restitucioBanda = 0.92f;
-	const float restitucioBoles = 0.96f;
-	const float desacceleracio = 0.20f; 
-	const float factorRotacioRodolament = 0.45f; // Redueix un 55% el gir visual per distancia recorreguda.
-	const float velocitatMinima = 0.015f;
+	// Coeficients fisics. El fregament de rodolament s'expressa com a
+	// desacceleracio (unitats de taula/s^2), independent dels FPS.
+	// Amb el tir minim v0=2.25 i a=0.40, la blanca recorre els 5.38
+	// unitats fins al rack i hi arriba a uns 0.87 unitats/s: contacte suau.
+	const float desacceleracioRodolament = 0.40f;
+	const float restitucioBoles = 0.94f;
+	const float restitucioBanda = 0.88f;
+	const float fregamentTangencialBanda = 0.985f;
+	const float velocitatMinima = 0.010f;
 	const float radiCapturaTronera = 0.34f;
+	const float margeContacte = 0.0015f;
+	const float velocitatImpacteMinima = 0.0005f;
 
-	// Centres aproximats de les sis troneres dibuixades a escena.cpp.
+	// Centres de les sis troneres del model de l'escena.
 	const glm::vec2 troneres[6] = {
 		glm::vec2(-4.72f,  2.22f), glm::vec2(0.0f,  2.34f), glm::vec2(4.72f,  2.22f),
 		glm::vec2(-4.72f, -2.22f), glm::vec2(0.0f, -2.34f), glm::vec2(4.72f, -2.22f)
@@ -4190,36 +4230,44 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 
 	alertaBandaDetectada = false;
 
-	// 1. Integracio del moviment, fregament, gir, troneres i bandes.
+	// 1. Integracio exacta del moviment amb fregament de rodolament constant.
+	// La distancia s'integra fins i tot quan una bola s'atura dins del pas.
 	for (int i = 0; i < 16; ++i)
 	{
 		if (!actives[i]) continue;
 
-		posicions[i] += velocitats[i] * deltaTemps;
-
-		// Fregament simplificat que redueix la rapidesa gradualment.
-		float rapidesa = glm::length(velocitats[i]);
-		if (rapidesa > 0.0f)
+		const float rapidesaInicial = glm::length(velocitats[i]);
+		if (rapidesaInicial > 0.0f)
 		{
-			const float novaRapidesa = (std::max)(0.0f, rapidesa - desacceleracio * deltaTemps);
-			velocitats[i] *= novaRapidesa / rapidesa;
-			if (novaRapidesa < velocitatMinima)
-				velocitats[i] = glm::vec2(0.0f, 0.0f);
+			const glm::vec2 direccio = velocitats[i] / rapidesaInicial;
+			const float tempsEnMoviment = (std::min)(deltaTemps,
+				rapidesaInicial / desacceleracioRodolament);
+			const float distancia = rapidesaInicial * tempsEnMoviment -
+				0.5f * desacceleracioRodolament * tempsEnMoviment * tempsEnMoviment;
+			const glm::vec2 desplacament = direccio * distancia;
+			posicions[i] += desplacament;
+
+			const float angleGir = distancia / radi;
+			if (distancia > 0.000001f)
+			{
+				// Per rodolament sense lliscament, omega = ( -vy, vx, 0 ) / radi.
+				// El signe s'inverteix automaticament quan canvia la direccio.
+				const glm::vec3 eixGir = glm::vec3(-direccio.y, direccio.x, 0.0f);
+				if (i == 0)
+					rotacioBolaBlanca = glm::rotate(glm::mat4(1.0f), angleGir, eixGir) * rotacioBolaBlanca;
+				else
+					rotacioBolesColor[i - 1] = glm::rotate(glm::mat4(1.0f), angleGir, eixGir) * rotacioBolesColor[i - 1];
+			}
+
+			const float rapidesaFinal = (std::max)(0.0f,
+				rapidesaInicial - desacceleracioRodolament * deltaTemps);
+			velocitats[i] = (rapidesaFinal < velocitatMinima)
+				? glm::vec2(0.0f, 0.0f)
+				: direccio * rapidesaFinal;
 		}
 
-		// Rotacio de rodolament sobre el tapet XY.
-		rapidesa = glm::length(velocitats[i]);
-		if (rapidesa > velocitatMinima)
-		{
-			const glm::vec3 eixGir = glm::normalize(glm::vec3(velocitats[i].y, -velocitats[i].x, 0.0f));
-			const float angleGir = rapidesa * deltaTemps / radi * factorRotacioRodolament;
-			if (i == 0)
-				rotacioBolaBlanca = glm::rotate(glm::mat4(1.0f), angleGir, eixGir) * rotacioBolaBlanca;
-			else
-				rotacioBolesColor[i - 1] = glm::rotate(glm::mat4(1.0f), angleGir, eixGir) * rotacioBolesColor[i - 1];
-		}
-
-		// Si el centre entra en una tronera, retirem la bola del joc.
+		// Les troneres es comproven abans dels coixins per no fer rebotar
+		// una bola que ja ha entrat a una tronera.
 		bool dinsTronera = false;
 		for (int t = 0; t < 6; ++t)
 		{
@@ -4237,18 +4285,27 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			continue;
 		}
 
-		// Rebot contra els quatre costats interiors de la taula.
+		// Coixins: es corregeix la posicio i nomes es reflecteix la component
+		// normal que apunta cap a fora. La component tangent perd molt poca energia.
 		if (posicions[i].x < -limitX)
 		{
 			posicions[i].x = -limitX;
-			if (velocitats[i].x < 0.0f) velocitats[i].x = -velocitats[i].x * restitucioBanda;
+			if (velocitats[i].x < 0.0f)
+			{
+				velocitats[i].x = -velocitats[i].x * restitucioBanda;
+				velocitats[i].y *= fregamentTangencialBanda;
+			}
 			alertaBandaDetectada = true;
 			partidaDosJugadors.registraBanda();
 		}
 		else if (posicions[i].x > limitX)
 		{
 			posicions[i].x = limitX;
-			if (velocitats[i].x > 0.0f) velocitats[i].x = -velocitats[i].x * restitucioBanda;
+			if (velocitats[i].x > 0.0f)
+			{
+				velocitats[i].x = -velocitats[i].x * restitucioBanda;
+				velocitats[i].y *= fregamentTangencialBanda;
+			}
 			alertaBandaDetectada = true;
 			partidaDosJugadors.registraBanda();
 		}
@@ -4256,20 +4313,42 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 		if (posicions[i].y < -limitY)
 		{
 			posicions[i].y = -limitY;
-			if (velocitats[i].y < 0.0f) velocitats[i].y = -velocitats[i].y * restitucioBanda;
+			if (velocitats[i].y < 0.0f)
+			{
+				velocitats[i].y = -velocitats[i].y * restitucioBanda;
+				velocitats[i].x *= fregamentTangencialBanda;
+			}
 			alertaBandaDetectada = true;
 			partidaDosJugadors.registraBanda();
 		}
 		else if (posicions[i].y > limitY)
 		{
 			posicions[i].y = limitY;
-			if (velocitats[i].y > 0.0f) velocitats[i].y = -velocitats[i].y * restitucioBanda;
+			if (velocitats[i].y > 0.0f)
+			{
+				velocitats[i].y = -velocitats[i].y * restitucioBanda;
+				velocitats[i].x *= fregamentTangencialBanda;
+			}
 			alertaBandaDetectada = true;
 			partidaDosJugadors.registraBanda();
 		}
 	}
 
-	// 2. Colisions entre totes les parelles de boles (mateixa massa i radi).
+	// 2. Generacio d'un contacte per parella. El petit marge inclou parelles
+	// tangents (sense penetracio), imprescindible per transmetre el xoc al rack.
+	// Com a maxim hi ha 16*15/2 = 120 contactes.
+	struct ContacteBola
+	{
+		int a;
+		int b;
+		glm::vec2 normal;
+		float impulsAcumulat;
+		float velocitatObjectiu;
+		bool contacteRegistrat;
+	};
+	ContacteBola contactes[120];
+	int nombreContactes = 0;
+
 	for (int i = 0; i < 16; ++i)
 	{
 		if (!actives[i]) continue;
@@ -4278,33 +4357,118 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			if (!actives[j]) continue;
 
 			const glm::vec2 diferencia = posicions[j] - posicions[i];
-			const float distancia = glm::length(diferencia);
-			if (distancia >= diametre) continue;
+			const float distancia2 = glm::dot(diferencia, diferencia);
+			const float distanciaMaxima = diametre + margeContacte;
+			if (distancia2 > distanciaMaxima * distanciaMaxima) continue;
 
-			const glm::vec2 normal = (distancia > 0.00001f)
+			const float distancia = std::sqrt((std::max)(distancia2, 0.0000000001f));
+			const glm::vec2 normal = (distancia2 > 0.0000000001f)
 				? diferencia / distancia : glm::vec2(1.0f, 0.0f);
+			const float velocitatNormalInicial = glm::dot(
+				velocitats[j] - velocitats[i], normal);
 
-			// Correccio de penetracio: les dues boles queden tangents.
-			const float penetracio = diametre - distancia;
-			const glm::vec2 correccio = normal * (penetracio * 0.5f + 0.0001f);
-			posicions[i] -= correccio;
-			posicions[j] += correccio;
+			ContacteBola& contacte = contactes[nombreContactes++];
+			contacte.a = i;
+			contacte.b = j;
+			contacte.normal = normal;
+			contacte.impulsAcumulat = 0.0f;
+			// La restitucio es fixa amb la velocitat previa al contacte. Els
+			// contactes inicialment en repòs poden transmetre impuls quan reben
+			// la compressio de les boles veines, pero no reben rebot artificial.
+			contacte.velocitatObjectiu = (velocitatNormalInicial < -velocitatImpacteMinima)
+				? -restitucioBoles * velocitatNormalInicial : 0.0f;
+			contacte.contacteRegistrat = false;
+		}
+	}
 
-			// Impuls al llarg de la normal per a dues boles de la mateixa massa.
-			const glm::vec2 velocitatRelativa = velocitats[j] - velocitats[i];
-			const float velocitatNormal = glm::dot(velocitatRelativa, normal);
-			if (velocitatNormal < 0.0f)
+	// 3. Solver de contactes amb impuls acumulat (projected Gauss-Seidel).
+	// Cada passada actualitza l'impuls net de cada parella; nomes s'aplica
+	// la diferencia respecte a l'impuls ja acumulat. Aixi es pot propagar un
+	// xoc simultani per tot el rack sense duplicar impulsos ni crear energia.
+	const int iteracionsImpuls = 32;
+	for (int iteracio = 0; iteracio < iteracionsImpuls; ++iteracio)
+	{
+		for (int c = 0; c < nombreContactes; ++c)
+		{
+			ContacteBola& contacte = contactes[c];
+			const int i = contacte.a;
+			const int j = contacte.b;
+			if (!actives[i] || !actives[j]) continue;
+
+			const float massaA = 0.170f;
+			const float massaB = 0.170f;
+			const float sumaInversesMassa = 1.0f / massaA + 1.0f / massaB;
+			const float velocitatNormal = glm::dot(
+				velocitats[j] - velocitats[i], contacte.normal);
+			const float deltaImpuls =
+				(contacte.velocitatObjectiu - velocitatNormal) / sumaInversesMassa;
+			const float impulsAnterior = contacte.impulsAcumulat;
+			contacte.impulsAcumulat = (std::max)(0.0f, impulsAnterior + deltaImpuls);
+			const float impulsAplicat = contacte.impulsAcumulat - impulsAnterior;
+
+			if (std::abs(impulsAplicat) > 0.0000001f)
 			{
-				if (i == 0) partidaDosJugadors.registraContacte(j);
-				if (j == 0) partidaDosJugadors.registraContacte(i);
-				const float impuls = -(1.0f + restitucioBoles) * velocitatNormal * 0.5f;
-				velocitats[i] -= impuls * normal;
-				velocitats[j] += impuls * normal;
+				const glm::vec2 impuls = impulsAplicat * contacte.normal;
+				velocitats[i] -= impuls / massaA;
+				velocitats[j] += impuls / massaB;
+			}
+
+			// Nomes comptem una vegada el contacte directe amb la blanca,
+			// quan el solver aplica un impuls positiu a aquesta parella.
+			if (impulsAplicat > 0.0000001f && !contacte.contacteRegistrat)
+			{
+				if (i == 0)
+				{
+					partidaDosJugadors.registraContacte(j);
+					contacte.contacteRegistrat = true;
+				}
+				else if (j == 0)
+				{
+					partidaDosJugadors.registraContacte(i);
+					contacte.contacteRegistrat = true;
+				}
 			}
 		}
 	}
 
-	// 3. Desem el resultat per al proper tick i per al dibuix.
+	// 4. Correccio de posicio separada dels impulsos: evita superposicions
+	// sense injectar energia ni alterar les velocitats ja resoltes.
+	const float toleranciaPenetracio = 0.0005f;
+	const float percentatgeCorreccio = 0.80f;
+	const int iteracionsPosicio = 8;
+	for (int iteracio = 0; iteracio < iteracionsPosicio; ++iteracio)
+	{
+		for (int c = 0; c < nombreContactes; ++c)
+		{
+			const ContacteBola& contacte = contactes[c];
+			const int i = contacte.a;
+			const int j = contacte.b;
+			if (!actives[i] || !actives[j]) continue;
+
+			const glm::vec2 diferencia = posicions[j] - posicions[i];
+			const float distancia2 = glm::dot(diferencia, diferencia);
+			const float distancia = std::sqrt((std::max)(distancia2, 0.0000000001f));
+			const float penetracio = diametre - distancia;
+			if (penetracio <= toleranciaPenetracio) continue;
+
+			const glm::vec2 normal = (distancia2 > 0.0000000001f)
+				? diferencia / distancia : glm::vec2(1.0f, 0.0f);
+			const float magnitudCorreccio =
+				(percentatgeCorreccio * (penetracio - toleranciaPenetracio)) * 0.5f;
+			const glm::vec2 correccio = magnitudCorreccio * normal;
+			posicions[i] -= correccio;
+			posicions[j] += correccio;
+		}
+	}
+
+	// 5. Eliminem residus numerics de velocitat i desem l'estat per al dibuix.
+	for (int i = 0; i < 16; ++i)
+	{
+		if (!actives[i]) continue;
+		if (glm::dot(velocitats[i], velocitats[i]) < velocitatMinima * velocitatMinima)
+			velocitats[i] = glm::vec2(0.0f, 0.0f);
+	}
+
 	posicioBolaBlancaX = posicions[0].x;
 	posicioBolaBlancaY = posicions[0].y;
 	velocitatBolaBlancaX = velocitats[0].x;
@@ -4333,8 +4497,8 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			return;
 		}
 
-		// Calculem el temps transcorregut. Limitem els salts grans i subdividim
-		// el pas per reduir el risc que una bola travessi una altra o una banda.
+		// El rellotge de renderitzat nomes alimenta l'acumulador. La fisica
+		// s'executa sempre amb passos exactes de 1/240 s, independentment dels FPS.
 		ULONGLONG tempsActual = GetTickCount64();
 		float deltaTemps = (tempsActual - ultimTempsBillar) / 1000.0f;
 		ultimTempsBillar = tempsActual;
@@ -4346,19 +4510,43 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			tempsAnimacioTac += deltaTemps;
 			if (!tirAplicat && tempsAnimacioTac >= 0.15f)
 			{
-				velocitatBolaBlancaX = std::cos(angleTac) * forcaTir;
-				velocitatBolaBlancaY = std::sin(angleTac) * forcaTir;
+				// Impacte tac-blanca modelat per quantitat de moviment.
+				// Masses aproximades: bola reglamentaria 0.17 kg i massa
+				// efectiva del tac 0.50 kg. Les velocitats internes estan en
+				// unitats de taula/s; convertim a SI per calcular la força en N.
+				const float massaBolaKg = 0.170f;
+				const float massaTacEfectivaKg = 0.500f;
+				const float metresPerUnitatTaula = 2.54f / 9.68f;
+				const float restitucioTac = 0.82f;
+				// Temps mitja aproximat d'impacte tac-bola (1-2 ms).
+				const float tempsContacteTac = 0.0015f;
+				const float velocitatTacMetresSegon =
+					velocitatTacPunta * metresPerUnitatTaula;
+				const float massaReduida = 1.0f /
+					(1.0f / massaTacEfectivaKg + 1.0f / massaBolaKg);
+				const float impulsTac = (1.0f + restitucioTac) *
+					massaReduida * velocitatTacMetresSegon;
+				const float forcaMitjanaTacN = impulsTac / tempsContacteTac;
+				const float velocitatBolaMetresSegon =
+					(forcaMitjanaTacN * tempsContacteTac) / massaBolaKg;
+				const float velocitatBolaUnitatsTaula =
+					velocitatBolaMetresSegon / metresPerUnitatTaula;
+				const glm::vec2 direccioTir(std::cos(angleTac), std::sin(angleTac));
+				velocitatBolaBlancaX = direccioTir.x * velocitatBolaUnitatsTaula;
+				velocitatBolaBlancaY = direccioTir.y * velocitatBolaUnitatsTaula;
 				tirAplicat = true;
 			}
 			if (tempsAnimacioTac >= 0.32f)
 				animantTir = false;
 		}
 
-		const float pasMaxim = 1.0f / 120.0f;
-		const int nombrePassos = (std::max)(1, static_cast<int>(std::ceil(deltaTemps / pasMaxim)));
-		const float pasTemps = deltaTemps / nombrePassos;
-		for (int pas = 0; pas < nombrePassos; ++pas)
-			ActualitzaFisicaBillar(pasTemps);
+		const float pasFix = 1.0f / 240.0f;
+		acumuladorFisicaBillar += deltaTemps;
+		while (acumuladorFisicaBillar >= pasFix)
+		{
+			ActualitzaFisicaBillar(pasFix);
+			acumuladorFisicaBillar -= pasFix;
+		}
 
 		if (partidaDosJugadors.tirEnCurs() && tirAplicat && !animantTir && BolesAturadesBillar())
 		{
@@ -7129,6 +7317,10 @@ std::string CEntornVGIView::CString2String(const CString& cString)
 void CEntornVGIView::OnObjecteBillar()
 {
 	objecte = BILLAR;
+	modeCameraBillar = false;
+	ratoliInicialitzat = false;
+	m_ButoEAvall = false;
+	if (::GetCapture() == m_hWnd) ReleaseCapture();
 	// Reiniciem la bola blanca i les 15 boles de color quan entrem al billar.
 	ReiniciaBolesBillar();
 
@@ -7170,6 +7362,7 @@ void CEntornVGIView::OnObjecteBillar()
 	// Preparem el rellotge del billar
 	ultimTempsBillar = GetTickCount64();
 	tempsAcumulatBillar = 0.0f;
+	acumuladorFisicaBillar = 0.0f;
 
 	// Activem el temporitzador cada 16 mil·lisegons
 	SetTimer(5000, 16, NULL);
