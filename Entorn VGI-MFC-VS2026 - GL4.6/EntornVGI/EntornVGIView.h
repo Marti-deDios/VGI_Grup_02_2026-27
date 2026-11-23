@@ -46,7 +46,7 @@ public:
 
 	TipusCamera m_cameraAct = CAM_SUPERIOR;
 	float m_distanciaTir = 5.5f;
-	float m_distanciaPerSobre = 14.0f;
+	float m_distanciaPerSobre = 8.0f;
 
 	afx_msg void OnCameraTir();
 	afx_msg void OnCameraSuperior();
