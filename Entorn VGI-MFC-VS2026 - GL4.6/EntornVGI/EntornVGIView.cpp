@@ -4339,6 +4339,8 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			{
 				velocitatBolaBlancaX = std::cos(angleTac) * forcaTir;
 				velocitatBolaBlancaY = std::sin(angleTac) * forcaTir;
+				//per a que es canvii la camera quan es tira 
+				OnCameraSuperior();
 				tirAplicat = true;
 			}
 			if (tempsAnimacioTac >= 0.32f)
