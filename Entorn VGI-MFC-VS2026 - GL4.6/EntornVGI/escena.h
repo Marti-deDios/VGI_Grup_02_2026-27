@@ -1,12 +1,12 @@
-﻿//******** PRACTICA VISUALITZACI� GR�FICA INTERACTIVA (Escola Enginyeria - UAB)
-//******** Entorn b�sic VS2026 MULTIFINESTRA amb OpenGL 4.6, interf�cie MFC i llibreries GLM
-//******** Ferran Poveda, Marc Vivet, Carme Juli�, D�bora Gil, Enric Mart� G�dia (Setembre 2026)
+//******** PRACTICA VISUALITZACI? GR?FICA INTERACTIVA (Escola Enginyeria - UAB)
+//******** Entorn b?sic VS2026 MULTIFINESTRA amb OpenGL 4.6, interf?cie MFC i llibreries GLM
+//******** Ferran Poveda, Marc Vivet, Carme Juli?, D?bora Gil, Enric Mart? G?dia (Setembre 2026)
 // escena.h : interface de escena.cpp
 
 #ifndef GLSOURCE_H
 #define GLSOURCE_H
 
-// Entorn VGI: OBJECTE OBJ. Include per la definici� de l'objecte Obj_OBJ
+// Entorn VGI: OBJECTE OBJ. Include per la definici? de l'objecte Obj_OBJ
 #include "objLoader.h"	
 
 /* ------------------------------------------------------------------------- *
@@ -26,14 +26,14 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac);
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16]);
 
-// Entorn VGI: dibuixa -> Funci� que dibuixa objectes simples de la llibreria GLUT segons obj
+// Entorn VGI: dibuixa -> Funci? que dibuixa objectes simples de la llibreria GLUT segons obj
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
 	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
 	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
-	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac);
+	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16]);
 
 // Entorn VGI: Objecte Arc
 void arc(GLuint sh_programID, glm::mat4 MatriuTG, bool sw_mat[5]);

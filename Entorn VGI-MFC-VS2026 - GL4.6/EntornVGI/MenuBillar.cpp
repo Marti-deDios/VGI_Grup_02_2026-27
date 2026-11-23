@@ -28,7 +28,7 @@ namespace
 		{ L"A / D   o   fletxes",              L"Girar el tac amb més precisió" },
 		{ L"Botó esquerre + arrossegar avall", L"Carregar la força del cop" },
 		{ L"Deixar anar el botó",              L"Executar el tir" },
-		{ L"Espai",                            L"Tirar amb la força actual" },
+		{ L"Mantenir Espai",                   L"Carregar força i deixar anar per tirar" },
 		{ L"1",                                L"Càmera de tir (darrere la bola blanca)" },
 		{ L"2",                                L"Càmera superior" },
 		{ L"V",                                L"Càmera lliure (arrossega i roda per fer zoom)" },
@@ -378,7 +378,7 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
 	if (m_pantalla == PANT_PRINCIPAL)
 	{
 		const float ample = 435.0f * s;
-		d.panell = Rect{ (std::max)(18.0f * s, d.w * 0.07f), (d.h - 630.0f * s) * 0.5f, ample, 630.0f * s };
+		d.panell = Rect{ (d.w - ample) * 0.5f, (d.h - 630.0f * s) * 0.5f, ample, 630.0f * s };
 		d.titolY = d.panell.y + 133.0f * s;
 		d.subtitolY = d.panell.y + 192.0f * s;
 		d.nBotons = 4;

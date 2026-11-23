@@ -1190,8 +1190,12 @@ void CEntornVGIView::OnPaint()
 		if (MenuActiu() && !m_pausa && m_menu.PantallaActual() != CMenuBillar::PANT_VICTORIA)
 		{
 			const float angle = 6.2831853f * static_cast<float>(GetTickCount64() % 105000ULL) / 105000.0f;
+			const float aspecte = static_cast<float>(w) / static_cast<float>(h);
+			const float separacio = (std::min)(3.0f, (std::max)(0.0f, (aspecte - 1.15f) * 4.0f));
+			const glm::vec3 lateral(-std::sin(angle), std::cos(angle), 0.0f);
+			const glm::vec3 trasllat = -lateral * separacio;
 			const glm::vec3 ull(11.5f * std::cos(angle), 11.5f * std::sin(angle), 5.2f);
-			ViewMatrix = glm::lookAt(ull, glm::vec3(0.0f, 0.0f, 0.1f), glm::vec3(0.0f, 0.0f, 1.0f));
+			ViewMatrix = glm::lookAt(ull + trasllat, glm::vec3(0.0f, 0.0f, 0.1f) + trasllat, glm::vec3(0.0f, 0.0f, 1.0f));
 			glUseProgram(shader_programID);
 			glUniformMatrix4fv(glGetUniformLocation(shader_programID, "viewMatrix"), 1, GL_FALSE, &ViewMatrix[0][0]);
 		}
@@ -1222,7 +1226,7 @@ void CEntornVGIView::OnPaint()
 			hud.restants1 = partidaDosJugadors.bolesRestants(1);
 			hud.restants2 = partidaDosJugadors.bolesRestants(2);
 			hud.segons = (int)m_segonsPartida;
-			hud.forca = (forcaTir - 1.0f) / 7.0f;
+			hud.forca = (std::min)(1.0f, velocitatTacPunta / 3.5f);
 			hud.superior = m_cameraAct == CAM_SUPERIOR;
 			hud.blancaEnMa = partidaDosJugadors.blancaEnMa();
 			m_menu.Dibuixa(w, h, &hud);
@@ -1300,7 +1304,7 @@ void CEntornVGIView::dibuixa_Escena()
 	// El tac recula segons la potencia triada, arriba a la blanca quan
 	// s'aplica l'impuls i despres es retira per no travessar-la visualment.
 	float desplacamentTac = 0.0f;
-	if (carregantTir)
+	if (carregantTir || m_carregantEspai)
 		desplacamentTac = 0.04f + velocitatTacPunta * 0.30f;
 	else if (animantTir)
 	{
@@ -1313,15 +1317,46 @@ void CEntornVGIView::dibuixa_Escena()
 			desplacamentTac = 0.08f * (std::max)(0.0f, progrRetirada);
 		}
 	}
+	glm::vec2 posicionsVisuals[15];
+	bool bolesVisuals[15];
+	float enfonsamentTronera[16] = {};
+	for (int i = 0; i < 15; ++i)
+	{
+		posicionsVisuals[i] = posicioBolesColor[i];
+		bolesVisuals[i] = bolesColorActives[i];
+	}
+	float blancaVisualX = posicioBolaBlancaX;
+	float blancaVisualY = posicioBolaBlancaY;
+	bool blancaVisualActiva = bolaBlancaActiva;
+	for (int i = 0; i < 16; ++i)
+	{
+		if (m_tempsForat[i] <= 0.0f) continue;
+		const float progr = 1.0f - m_tempsForat[i] / 0.42f;
+		enfonsamentTronera[i] = (std::min)(1.0f, (std::max)(0.0f, progr));
+		const glm::vec2 pos = glm::mix(m_entradaForat[i], m_centreForat[i], enfonsamentTronera[i] * 0.75f);
+		if (i == 0)
+		{
+			blancaVisualX = pos.x;
+			blancaVisualY = pos.y;
+			blancaVisualActiva = true;
+		}
+		else
+		{
+			posicionsVisuals[i - 1] = pos;
+			bolesVisuals[i - 1] = true;
+		}
+	}
+
 	dibuixa_EscenaGL(shader_programID, eixos, eixos_Id, grid, hgrid, objecte, col_obj, sw_material,
 		textura, texturesID, textura_map, tFlag_invert_Y,
 		npts_T, PC_t, pas_CS, sw_Punts_Control, dibuixa_TriedreFrenet,
 		ObOBJ,				// Classe de l'objecte OBJ que conté els VAO's
 		GTMatrix, texturesBoles,
-		posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca, bolaBlancaActiva,
-		posicioBolesColor, rotacioBolesColor, bolesColorActives,
+		blancaVisualX, blancaVisualY, rotacioBolaBlanca, blancaVisualActiva,
+		posicionsVisuals, rotacioBolesColor, bolesVisuals,
 		angleTac, desplacamentTac,
-		(!MenuActiu() || m_pausa) && bolaBlancaActiva && (BolesAturadesBillar() || animantTir));
+		(!MenuActiu() || m_pausa) && bolaBlancaActiva && (BolesAturadesBillar() || animantTir),
+		enfonsamentTronera);
 }
 
 
@@ -1642,6 +1677,7 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_enMenu = true;
 		m_pausa = true;
 		carregantTir = false;
+		m_carregantEspai = false;
 		if (::GetCapture() == m_hWnd) ReleaseCapture();
 		m_menu.MostraPausa();
 		InvalidateRect(NULL, false);
@@ -1711,10 +1747,14 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		if (nChar == VK_SPACE)
 		{
-			// Velocitat mitjana del tac (m/s); la massa i la restitucio
-			// determinen despres la velocitat de la blanca.
-			velocitatTacPunta = 2.05f;
-			ComencaTirBillar();
+			if (!m_carregantEspai && !carregantTir && !animantTir &&
+				bolaBlancaActiva && BolesAturadesBillar() && partidaDosJugadors.potTirar())
+			{
+				m_carregantEspai = true;
+				m_tempsCarregaEspai = 0.0f;
+				velocitatTacPunta = 0.65f;
+				InvalidateRect(NULL, false);
+			}
 			return;
 		}
 	}
@@ -1761,8 +1801,15 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 void CEntornVGIView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	// TODO: Agregue aquí su código de controlador de mensajes o llame al valor predeterminado
-
+	if (objecte == BILLAR && nChar == VK_SPACE)
+	{
+		if (m_carregantEspai)
+		{
+			m_carregantEspai = false;
+			ComencaTirBillar();
+		}
+		return;
+	}
 	CView::OnKeyUp(nChar, nRepCnt, nFlags);
 }
 
@@ -3585,7 +3632,7 @@ void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
 		SetFocus();
-		if (BolesAturadesBillar() && bolaBlancaActiva && !animantTir)
+		if (BolesAturadesBillar() && bolaBlancaActiva && !animantTir && !m_carregantEspai)
 		{
 			carregantTir = true;
 			velocitatTacPunta = 0.0f;
@@ -4161,6 +4208,9 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	}
 
 	alertaBandaDetectada = false;
+	m_carregantEspai = false;
+	m_tempsCarregaEspai = 0.0f;
+	for (int i = 0; i < 16; ++i) m_tempsForat[i] = 0.0f;
 	angleTac = 0.0f;
 	velocitatTacPunta = 0.0f;
 	tempsAnimacioTac = 0.0f;
@@ -4286,7 +4336,7 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 	const float restitucioBanda = 0.88f;
 	const float fregamentTangencialBanda = 0.985f;
 	const float velocitatMinima = 0.010f;
-	const float radiCapturaTronera = 0.34f;
+	const float radiCapturaTronera = 0.22f;
 	const float margeContacte = 0.0015f;
 	const float velocitatImpacteMinima = 0.0005f;
 
@@ -4350,17 +4400,20 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 
 		// Les troneres es comproven abans dels coixins per no fer rebotar
 		// una bola que ja ha entrat a una tronera.
-		bool dinsTronera = false;
+		int indexTronera = -1;
 		for (int t = 0; t < 6; ++t)
 		{
 			if (glm::length(posicions[i] - troneres[t]) <= radiCapturaTronera)
 			{
-				dinsTronera = true;
+				indexTronera = t;
 				break;
 			}
 		}
-		if (dinsTronera)
+		if (indexTronera >= 0)
 		{
+			m_tempsForat[i] = 0.42f;
+			m_entradaForat[i] = posicions[i];
+			m_centreForat[i] = troneres[indexTronera];
 			partidaDosJugadors.registraEmbocada(i);
 			actives[i] = false;
 			velocitats[i] = glm::vec2(0.0f, 0.0f);
@@ -4604,6 +4657,13 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		deltaTemps = (std::max)(0.0f, (std::min)(deltaTemps, 0.10f));
 		m_segonsPartida += deltaTemps;
 		tempsAcumulatBillar += deltaTemps;
+		if (m_carregantEspai)
+		{
+			m_tempsCarregaEspai = (std::min)(1.6f, m_tempsCarregaEspai + deltaTemps);
+			velocitatTacPunta = 0.65f + 2.85f * (m_tempsCarregaEspai / 1.6f);
+		}
+		for (int i = 0; i < 16; ++i)
+			m_tempsForat[i] = (std::max)(0.0f, m_tempsForat[i] - deltaTemps);
 
 		if (animantTir)
 		{

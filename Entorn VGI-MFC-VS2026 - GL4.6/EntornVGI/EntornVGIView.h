@@ -238,6 +238,11 @@ public:
 	bool m_menuPendentInicialitzar = true;
 	bool m_pausa = false;
 	float m_segonsPartida = 0.0f;
+	bool m_carregantEspai = false;
+	float m_tempsCarregaEspai = 0.0f;
+	float m_tempsForat[16] = {};
+	glm::vec2 m_entradaForat[16] = {};
+	glm::vec2 m_centreForat[16] = {};
 	bool MenuActiu() const { return m_enMenu && objecte == BILLAR; }
 
 	// Control de la deteccio de les bandes
