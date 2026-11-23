@@ -16,7 +16,7 @@ namespace
 	const wchar_t* const AJUDA_PRINCIPAL = L"2 JUGADORS  ·  8 BOLES  ·  UNA SOLA TAULA";
 
 	const wchar_t* const ETIQUETES_PRINCIPAL[4] = { L"COMENÇAR PARTIDA", L"NORMES DEL JOC", L"CONTROLS I AJUDA", L"CRÈDITS" };
-	const wchar_t* const ETIQUETES_PAUSA[3] = { L"CONTINUAR", L"REINICIAR PARTIDA", L"TORNAR AL MENÚ" };
+	const wchar_t* const ETIQUETES_PAUSA[4] = { L"CONTINUAR", L"NORMES DEL JOC", L"REINICIAR PARTIDA", L"TORNAR AL MENÚ" };
 	const wchar_t* const ETIQUETES_FINAL[2] = { L"TORNAR A JUGAR", L"MENÚ PRINCIPAL" };
 	const wchar_t* const ETIQUETA_TORNAR = L"TORNAR";
 
@@ -236,6 +236,7 @@ void main()
 
 void CMenuBillar::MostraPrincipal()
 {
+	m_normesDesDePausa = false;
 	m_pantalla = PANT_PRINCIPAL;
 	m_seleccio = 0;
 	m_ultimaOpcio = 0;
@@ -245,6 +246,7 @@ void CMenuBillar::MostraPrincipal()
 
 void CMenuBillar::MostraPausa()
 {
+	m_normesDesDePausa = false;
 	m_pantalla = PANT_PAUSA;
 	m_seleccio = 0;
 	m_premut = -1;
@@ -260,8 +262,17 @@ void CMenuBillar::MostraVictoria(int jugador)
 
 void CMenuBillar::TornaEnrere()
 {
-	m_pantalla = PANT_PRINCIPAL;
-	m_seleccio = m_ultimaOpcio;
+	if (m_normesDesDePausa)
+	{
+		m_normesDesDePausa = false;
+		m_pantalla = PANT_PAUSA;
+		m_seleccio = 1;
+	}
+	else
+	{
+		m_pantalla = PANT_PRINCIPAL;
+		m_seleccio = m_ultimaOpcio;
+	}
 	m_premut = -1;
 	m_anim[0] = m_anim[1] = m_anim[2] = m_anim[3] = 0.0f;
 }
@@ -273,7 +284,14 @@ CMenuBillar::Accio CMenuBillar::ExecutaBoto(int index)
 	if (m_pantalla == PANT_PAUSA)
 	{
 		if (index == 0) return ACCIO_CONTINUAR;
-		if (index == 1) return ACCIO_REINICIAR;
+		if (index == 1)
+		{
+			m_normesDesDePausa = true;
+			m_pantalla = PANT_NORMES;
+			m_seleccio = 0;
+			return ACCIO_CAP;
+		}
+		if (index == 2) return ACCIO_REINICIAR;
 		return ACCIO_MENU;
 	}
 	if (m_pantalla == PANT_VICTORIA)
@@ -335,7 +353,7 @@ CMenuBillar::Accio CMenuBillar::RatoliSolta(int x, int y, int ampladaFinestra, i
 CMenuBillar::Accio CMenuBillar::TeclaPremuda(UINT nChar)
 {
 	const int n = m_pantalla == PANT_PRINCIPAL ? 4 :
-		m_pantalla == PANT_PAUSA ? 3 : m_pantalla == PANT_VICTORIA ? 2 : 1;
+		m_pantalla == PANT_PAUSA ? 4 : m_pantalla == PANT_VICTORIA ? 2 : 1;
 
 	switch (nChar)
 	{
@@ -389,13 +407,14 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
 	{
 		const bool controls = (m_pantalla == PANT_CONTROLS);
 		const bool credits = (m_pantalla == PANT_CREDITS);
-		const float contingut = controls ? N_CONTROLS * ALTURA_FILA_CONTROLS : credits ? AlturaContingutCredits() : 250.0f;
+		const float contingut = controls ? N_CONTROLS * ALTURA_FILA_CONTROLS :
+			credits ? AlturaContingutCredits() : m_pantalla == PANT_NORMES ? 330.0f : 250.0f;
 		const float amplada = (controls ? 1000.0f : 760.0f) * s;
 		const float alcada = (CAPCALERA_PANELL + contingut + PEU_PANELL) * s;
 		d.panell = Rect{ (d.w - amplada) * 0.5f, (d.h - alcada) * 0.5f, amplada, alcada };
 		const bool pausa = m_pantalla == PANT_PAUSA;
 		const bool final = m_pantalla == PANT_VICTORIA;
-		d.nBotons = pausa ? 3 : final ? 2 : 1;
+		d.nBotons = pausa ? 4 : final ? 2 : 1;
 		const float ampladaBoto = (pausa || final ? 340.0f : 260.0f) * s;
 		for (int i = 0; i < d.nBotons; ++i)
 		{
@@ -526,16 +545,18 @@ void CMenuBillar::DibuixaNormes(const Disseny& d)
 	DibuixaText(L"NORMES DEL JOC", d.w * 0.5f, p.y + 47.0f * s, Px(41.0f, s), true, COLOR_DAURAT, 1);
 	Pla(p.x + 42.0f * s, p.y + 87.0f * s, p.w - 84.0f * s, 2.0f * s, COLOR_LINIA);
 	const wchar_t* linies[] = {
-		L"Dos jugadors comparteixen la mateixa taula.",
-		L"Les boles 1-7 són llises; les 9-15, ratllades.",
-		L"Emboques una bola del teu grup? Continues tirant.",
-		L"Si fas falta, el torn passa a l'altre jugador.",
-		L"Si entra la blanca, el rival la pot recol·locar.",
-		L"Després de les teves boles, has d'embocar la negra.",
-		L"S'apliquen normes simplificades de 8 boles."
+		L"OBJECTIU: emboca les boles del teu grup i la negra.",
+		L"Llises: 1-7. Ratllades: 9-15. Negra: 8.",
+		L"Si emboces una bola legal, continues tirant.",
+		L"FALTA: entra la blanca -> el rival te DOS TIRS.",
+		L"FALTA: no toques cap bola -> el rival te DOS TIRS.",
+		L"FALTA: primer contacte incorrecte -> DOS TIRS.",
+		L"FALTA: ni embocada ni banda posterior -> DOS TIRS.",
+		L"Despres de falta: blanca en ma amb I / J / K / L.",
+		L"Negra prematura o amb falta: partida perduda."
 	};
-	for (int i = 0; i < 7; ++i)
-		DibuixaText(linies[i], p.x + 45.0f * s, p.y + (120.0f + i * 36.0f) * s, Px(21.0f, s), false, COLOR_BLANC, 0);
+	for (int i = 0; i < 9; ++i)
+		DibuixaText(linies[i], p.x + 45.0f * s, p.y + (120.0f + i * 36.0f) * s, Px(20.0f, s), false, COLOR_BLANC, 0);
 	DibuixaBoto(d.boto[0], ETIQUETA_TORNAR, m_anim[0], s);
 }
 
@@ -545,7 +566,7 @@ void CMenuBillar::DibuixaPausa(const Disseny& d)
 	const Rect& p = d.panell;
 	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
 	DibuixaText(L"PARTIDA EN PAUSA", d.w * 0.5f, p.y + 53.0f * s, Px(37.0f, s), true, COLOR_DAURAT, 1);
-	for (int i = 0; i < 3; ++i) DibuixaBoto(d.boto[i], ETIQUETES_PAUSA[i], m_anim[i], s);
+	for (int i = 0; i < 4; ++i) DibuixaBoto(d.boto[i], ETIQUETES_PAUSA[i], m_anim[i], s);
 }
 
 void CMenuBillar::DibuixaVictoria(const Disseny& d)
@@ -595,7 +616,10 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 	wchar_t temps[32];
 	swprintf_s(temps, 32, L"%02d:%02d", minuts, segons);
 	DibuixaText(temps, peu.x + peu.w - 22.0f * s, yPeu + 22.0f * s, Px(19.0f, s), true, COLOR_DAURAT, 2);
-	DibuixaText(info.blancaEnMa ? L"BLANCA EN MÀ: I / J / K / L" : L"ESC: PAUSA  ·  R: REINICIAR", peu.x + 19.0f * s, yPeu + 43.0f * s, Px(13.0f, s), false, COLOR_GRIS, 0);
+	const wchar_t* indicacio = info.tirsDisponibles > 1 ?
+		(info.blancaEnMa ? L"FALTA: 2 TIRS. BLANCA EN MA: I/J/K/L" : L"TENS 2 TIRS") :
+		(info.blancaEnMa ? L"BLANCA EN MA: I / J / K / L" : L"ESC: PAUSA  ·  R: REINICIAR");
+	DibuixaText(indicacio, peu.x + 19.0f * s, yPeu + 43.0f * s, Px(13.0f, s), false, info.tirsDisponibles > 1 ? COLOR_DAURAT : COLOR_GRIS, 0);
 }
 
 void CMenuBillar::DibuixaControls(const Disseny& d)

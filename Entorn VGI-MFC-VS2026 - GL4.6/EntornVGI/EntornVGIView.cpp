@@ -1225,6 +1225,7 @@ void CEntornVGIView::OnPaint()
 			hud.grup2 = partidaDosJugadors.grupJugador(2);
 			hud.restants1 = partidaDosJugadors.bolesRestants(1);
 			hud.restants2 = partidaDosJugadors.bolesRestants(2);
+			hud.tirsDisponibles = partidaDosJugadors.tirsDisponibles();
 			hud.segons = (int)m_segonsPartida;
 			hud.forca = (std::min)(1.0f, velocitatTacPunta / 3.5f);
 			hud.superior = m_cameraAct == CAM_SUPERIOR;
@@ -1693,11 +1694,13 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		if (nChar == '2')
 		{
+			m_tornarCameraTir = false;
 			OnCameraSuperior();
 			return;
 		}
 		if (nChar == 'V')
 		{
+			m_tornarCameraTir = false;
 			modeCameraBillar = !modeCameraBillar;
 			ratoliInicialitzat = false;
 			m_ButoEAvall = false;
@@ -4159,6 +4162,7 @@ void CEntornVGIView::ComencaTirBillar()
 
 void CEntornVGIView::ReiniciaBolesBillar()
 {
+	m_tornarCameraTir = false;
 	// La bola blanca comenca alineada amb el centre del rack per fer el primer xoc.
 	posicioBolaBlancaX = -3.0f;
 	posicioBolaBlancaY = 0.0f;
@@ -4694,6 +4698,7 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 				const glm::vec2 direccioTir(std::cos(angleTac), std::sin(angleTac));
 				velocitatBolaBlancaX = direccioTir.x * velocitatBolaUnitatsTaula;
 				velocitatBolaBlancaY = direccioTir.y * velocitatBolaUnitatsTaula;
+				m_tornarCameraTir = !modeCameraBillar && m_cameraAct == CAM_TIR;
 				OnCameraSuperior();
 				tirAplicat = true;
 			}
@@ -4737,6 +4742,19 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 
 		if (!bolaBlancaActiva && !partidaDosJugadors.tirEnCurs() && BolesAturadesBillar())
 			RecolocaBolaBlancaBillar();
+
+		if (m_tornarCameraTir && !MenuActiu() && !animantTir &&
+			!partidaDosJugadors.tirEnCurs() && BolesAturadesBillar())
+		{
+			bool animacioForatPendent = false;
+			for (int i = 0; i < 16; ++i)
+				if (m_tempsForat[i] > 0.0f) animacioForatPendent = true;
+			if (!animacioForatPendent)
+			{
+				m_tornarCameraTir = false;
+				OnCameraTir();
+			}
+		}
 
 		// Comprovem aproximadament cada segon que funciona
 		if (tempsAcumulatBillar >= 1.0f)
@@ -7580,6 +7598,7 @@ void CEntornVGIView::ComencaPartida()
 	m_segonsPartida = 0.0f;
 	modeCameraBillar = false;
 	ReiniciaBolesBillar();
+	OnCameraTir();
 	ultimTempsBillar = GetTickCount64();
 	SetFocus();
 	InvalidateRect(NULL, false);

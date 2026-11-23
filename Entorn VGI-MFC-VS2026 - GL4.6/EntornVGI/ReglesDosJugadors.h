@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 
@@ -96,6 +96,7 @@ public:
         {
             jugador_ = 3 - jugador_;
             blancaEnMa_ = true;
+            tirsDisponibles_ = 2;
             return Resultat::Falta;
         }
 
@@ -110,11 +111,19 @@ public:
         if (embocadaValida)
             return Resultat::Continua;
 
+        if (tirsDisponibles_ > 1)
+        {
+            --tirsDisponibles_;
+            return Resultat::Continua;
+        }
+
         jugador_ = 3 - jugador_;
+        tirsDisponibles_ = 1;
         return Resultat::CanviTorn;
     }
 
     int jugadorActual() const { return jugador_; }
+    int tirsDisponibles() const { return tirsDisponibles_; }
     int guanyador() const { return guanyador_; }
     int grupJugador(int jugador) const { return jugador >= 1 && jugador <= 2 ? grup_[jugador - 1] : 0; }
     bool blancaEnMa() const { return blancaEnMa_; }
@@ -152,6 +161,7 @@ private:
     }
 
     int jugador_ = 1;
+    int tirsDisponibles_ = 1;
     int guanyador_ = 0;
     int grup_[2] = { 0, 0 };
     bool trencada_ = true;

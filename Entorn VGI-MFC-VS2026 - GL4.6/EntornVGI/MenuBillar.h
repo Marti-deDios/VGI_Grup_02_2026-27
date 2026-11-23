@@ -27,6 +27,7 @@ public:
 		int jugador = 1;
 		int restants1 = 7;
 		int restants2 = 7;
+		int tirsDisponibles = 1;
 		int grup1 = 0;
 		int grup2 = 0;
 		int segons = 0;
@@ -104,6 +105,7 @@ private:
 	int   m_seleccio = 0;				// Boto ressaltat (ratoli o teclat)
 	int   m_premut = -1;				// Boto sobre el qual s'ha premut el ratoli
 	int   m_ultimaOpcio = 0;
+	bool  m_normesDesDePausa = false;
 	int   m_guanyador = 0;			// Opcio del menu principal d'on venim (per tornar-hi)
 	float m_anim[4] = { 0.0f, 0.0f, 0.0f, 0.0f };	// Animacio de ressaltat de cada boto (0..1)
 	ULONGLONG m_ultimTemps = 0;

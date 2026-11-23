@@ -225,6 +225,7 @@ public:
 	float tempsAnimacioTac = 0.0f;
 	bool carregantTir = false;
 	bool modeCameraBillar = false;
+	bool m_tornarCameraTir = false;
 	bool animantTir = false;
 	bool tirAplicat = false;
 	bool ratoliInicialitzat = false;
