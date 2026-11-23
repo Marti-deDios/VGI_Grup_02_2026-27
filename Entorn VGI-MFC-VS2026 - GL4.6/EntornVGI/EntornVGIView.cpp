@@ -973,6 +973,13 @@ void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum severi
 
 void CEntornVGIView::OnDestroy()
 {
+	if (m_pDC != NULL && m_hRC != NULL)
+	{
+		wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
+		m_menu.Allibera();
+		wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
+	}
+
 	CView::OnDestroy();
 
 	// TODO: Agregue aquí su código de controlador de mensajes
@@ -1003,6 +1010,8 @@ void CEntornVGIView::OnInitialUpdate()
 	CDC* pDC = GetDC();
 	//m_glRenderer.PrepareScene(pDC);
 	ReleaseDC(pDC);
+	// Inicialitzem el billar des del bucle de missatges, no durant WM_PAINT.
+	if (m_menuPendentInicialitzar) SetTimer(5001, 50, NULL);
 }
 
 
@@ -1023,6 +1032,13 @@ void CEntornVGIView::OnDraw(CDC* /*pDC*/)
 void CEntornVGIView::OnPaint()
 {
 	CPaintDC dc(this); // device context for painting
+	if (m_menuPendentInicialitzar) return;
+	// El HUD necessita la mida REAL del client MDI, no una mida anterior.
+	CRect areaClient;
+	GetClientRect(&areaClient);
+	w = areaClient.Width();
+	h = areaClient.Height();
+	if (w <= 0 || h <= 0) return;
 	// TODO: Agregue aquí su código de controlador de mensajes
 	// No llama a CView::OnPaint() para mensajes de pintura
 	GLdouble vpv[3] = { 0.0, 0.0, 1.0 };
@@ -1171,7 +1187,15 @@ void CEntornVGIView::OnPaint()
 				eixos, grid, hgrid);
 		}
 
-		if (objecte == BILLAR && !modeCameraBillar)
+		if (MenuActiu() && !m_pausa && m_menu.PantallaActual() != CMenuBillar::PANT_VICTORIA)
+		{
+			const float angle = 6.2831853f * static_cast<float>(GetTickCount64() % 105000ULL) / 105000.0f;
+			const glm::vec3 ull(11.5f * std::cos(angle), 11.5f * std::sin(angle), 5.2f);
+			ViewMatrix = glm::lookAt(ull, glm::vec3(0.0f, 0.0f, 0.1f), glm::vec3(0.0f, 0.0f, 1.0f));
+			glUseProgram(shader_programID);
+			glUniformMatrix4fv(glGetUniformLocation(shader_programID, "viewMatrix"), 1, GL_FALSE, &ViewMatrix[0][0]);
+		}
+		else if (objecte == BILLAR && !modeCameraBillar)
 		{
 			float posicioBlanca[3] = { posicioBolaBlancaX, posicioBolaBlancaY, 0.25f };
 			float centreTaula[3] = { 0.0f, 0.0f, 0.1f };
@@ -1186,6 +1210,23 @@ void CEntornVGIView::OnPaint()
 		// Dibuix de l'Objecte o l'Escena
 		configura_Escena();     // Aplicar Transformacions Geometriques segons persiana Transformacio i configurar objectes.
 		dibuixa_Escena();		// Dibuix geometria de l'escena amb comandes GL.
+
+		if (MenuActiu())
+			m_menu.Dibuixa(w, h);
+		else if (objecte == BILLAR)
+		{
+			CMenuBillar::HUDInfo hud;
+			hud.jugador = partidaDosJugadors.jugadorActual();
+			hud.grup1 = partidaDosJugadors.grupJugador(1);
+			hud.grup2 = partidaDosJugadors.grupJugador(2);
+			hud.restants1 = partidaDosJugadors.bolesRestants(1);
+			hud.restants2 = partidaDosJugadors.bolesRestants(2);
+			hud.segons = (int)m_segonsPartida;
+			hud.forca = (forcaTir - 1.0f) / 7.0f;
+			hud.superior = m_cameraAct == CAM_SUPERIOR;
+			hud.blancaEnMa = partidaDosJugadors.blancaEnMa();
+			m_menu.Dibuixa(w, h, &hud);
+		}
 
 		// Intercanvia l'escena al front de la pantalla
 		SwapBuffers(m_pDC->GetSafeHdc());
@@ -1265,7 +1306,7 @@ void CEntornVGIView::dibuixa_Escena()
 		posicioBolesColor, rotacioBolesColor, bolesColorActives,
 		angleTac, carregantTir ? (forcaTir - 2.0f) * 0.10f :
 		(animantTir ? (0.28f - tempsAnimacioTac * 1.6f) : 0.0f),
-		bolaBlancaActiva && (BolesAturadesBillar() || animantTir));
+		(!MenuActiu() || m_pausa) && bolaBlancaActiva && (BolesAturadesBillar() || animantTir));
 }
 
 
@@ -1574,6 +1615,24 @@ void CEntornVGIView::double2CString(double varf)
 //    - nFlags: Flags d'interrupció activats.
 void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	if (MenuActiu())
+	{
+		if (nChar == 'F') OnVistaFullScreen();
+		else ExecutaAccioMenu(m_menu.TeclaPremuda(nChar));
+		InvalidateRect(NULL, false);
+		return;
+	}
+	if (objecte == BILLAR && nChar == VK_ESCAPE)
+	{
+		m_enMenu = true;
+		m_pausa = true;
+		carregantTir = false;
+		if (::GetCapture() == m_hWnd) ReleaseCapture();
+		m_menu.MostraPausa();
+		InvalidateRect(NULL, false);
+		return;
+	}
+
 	if (objecte == BILLAR)
 	{
 		if (nChar == '1')
@@ -3498,6 +3557,13 @@ void CEntornVGIView::Teclat_RobotMB(UINT nChar, UINT nRepCnt)
 // OnLButtonDown: Funció que es crida quan s'apreta el botó esquerra del mouse.
 void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 {
+	if (MenuActiu())
+	{
+		SetFocus();
+		m_menu.RatoliPrem(point.x, point.y, w, h);
+		return;
+	}
+
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
 		SetFocus();
@@ -3528,6 +3594,13 @@ void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 // OnLButtonUp: Funció que es crida quan deixem d'apretar el botó esquerra del mouse.
 void CEntornVGIView::OnLButtonUp(UINT nFlags, CPoint point)
 {
+	if (MenuActiu())
+	{
+		ExecutaAccioMenu(m_menu.RatoliSolta(point.x, point.y, w, h));
+		InvalidateRect(NULL, false);
+		return;
+	}
+
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
 		if (carregantTir)
@@ -3619,6 +3692,13 @@ void CEntornVGIView::OnRButtonUp(UINT /* nFlags */, CPoint point)
 //							 (coord. pantalla) quan el botó s'ha apretat.
 void CEntornVGIView::OnMouseMove(UINT nFlags, CPoint point)
 {
+	if (MenuActiu())
+	{
+		m_menu.RatoliMou(point.x, point.y, w, h);
+		InvalidateRect(NULL, false);
+		return;
+	}
+
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
 		if (!ratoliInicialitzat)
@@ -4119,6 +4199,8 @@ bool CEntornVGIView::PotMoureBlanca(float x, float y) const
 
 void CEntornVGIView::MostraEstatPartida(const CString& nota)
 {
+	// Durant la pantalla inicial no modifiquem el titol del document MDI.
+	if (m_enMenu) return;
 	CFrameWnd* marc = GetParentFrame();
 	if (!marc) return;
 	auto nomGrup = [](int grup) -> CString {
@@ -4323,6 +4405,17 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 /* ------------------------------------------------------------------------- */
 void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 {
+	if (nIDEvent == 5001)
+	{
+		KillTimer(5001);
+		if (m_menuPendentInicialitzar)
+		{
+			m_menuPendentInicialitzar = false;
+			PreparaMenuInicial();
+			InvalidateRect(NULL, FALSE);
+		}
+		return;
+	}
 	// Temporitzador del billar
 	if (nIDEvent == 5000)
 	{
@@ -4332,6 +4425,12 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			KillTimer(5000);
 			return;
 		}
+		if (MenuActiu())
+		{
+			ultimTempsBillar = GetTickCount64();
+			InvalidateRect(NULL, false);
+			return;
+		}
 
 		// Calculem el temps transcorregut. Limitem els salts grans i subdividim
 		// el pas per reduir el risc que una bola travessi una altra o una banda.
@@ -4339,6 +4438,7 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		float deltaTemps = (tempsActual - ultimTempsBillar) / 1000.0f;
 		ultimTempsBillar = tempsActual;
 		deltaTemps = (std::max)(0.0f, (std::min)(deltaTemps, 0.10f));
+		m_segonsPartida += deltaTemps;
 		tempsAcumulatBillar += deltaTemps;
 
 		if (animantTir)
@@ -4348,6 +4448,7 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			{
 				velocitatBolaBlancaX = std::cos(angleTac) * forcaTir;
 				velocitatBolaBlancaY = std::sin(angleTac) * forcaTir;
+				OnCameraSuperior();
 				tirAplicat = true;
 			}
 			if (tempsAnimacioTac >= 0.32f)
@@ -4379,9 +4480,9 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 				MostraEstatPartida(nota);
 				if (partidaDosJugadors.guanyador() != 0)
 				{
-					CString missatge;
-					missatge.Format(_T("Ha guanyat el jugador %d! Prem R per jugar una altra partida."), partidaDosJugadors.guanyador());
-					AfxMessageBox(missatge);
+				m_enMenu = true;
+				m_pausa = false;
+				m_menu.MostraVictoria(partidaDosJugadors.guanyador());
 				}
 			}
 		}
@@ -7192,4 +7293,75 @@ void CEntornVGIView::OnCameraSuperior()
 	ratoliInicialitzat = false;
 	m_ButoEAvall = false;
 	InvalidateRect(NULL, false);
+}
+
+/* ------------------------------------------------------------------------- */
+/*          MENÚ I INTERFÍCIE: BASE ARNAU + CÀMERES SOFIA + 2 JUGADORS       */
+/* ------------------------------------------------------------------------- */
+void CEntornVGIView::PreparaMenuInicial()
+{
+	wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
+	if (!eixos_programID) eixos_programID = shaderEixos.loadFileShaders(".\\shaders\\eixos.VERT", ".\\shaders\\eixos.FRAG");
+	if (!shader_programID)
+	{
+		shader_programID = shaderLighting.loadFileShaders(".\\shaders\\gouraud_shdrML.vert", ".\\shaders\\gouraud_shdrML.frag");
+		shader = GOURAUD_SHADER;
+	}
+	if (!eixos_Id) eixos_Id = deixos();
+	glUseProgram(shader_programID);
+	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
+	eixos = false;
+	projeccio = PERSPECT;
+	mobil = true;
+	zzoom = true;
+	OnObjecteBillar();
+	m_menu.MostraPrincipal();
+	m_enMenu = true;
+	m_pausa = false;
+}
+
+void CEntornVGIView::ComencaPartida()
+{
+	m_enMenu = false;
+	m_pausa = false;
+	m_segonsPartida = 0.0f;
+	modeCameraBillar = false;
+	ReiniciaBolesBillar();
+	ultimTempsBillar = GetTickCount64();
+	SetFocus();
+	InvalidateRect(NULL, false);
+}
+
+void CEntornVGIView::ContinuaPartida()
+{
+	m_enMenu = false;
+	m_pausa = false;
+	ultimTempsBillar = GetTickCount64();
+	SetFocus();
+	InvalidateRect(NULL, false);
+}
+
+void CEntornVGIView::TornaAlMenu()
+{
+	carregantTir = false;
+	m_ButoEAvall = false;
+	ratoliInicialitzat = false;
+	if (::GetCapture() == m_hWnd) ReleaseCapture();
+	modeCameraBillar = false;
+	m_menu.MostraPrincipal();
+	m_enMenu = true;
+	m_pausa = false;
+	InvalidateRect(NULL, false);
+}
+
+void CEntornVGIView::ExecutaAccioMenu(CMenuBillar::Accio accio)
+{
+	switch (accio)
+	{
+	case CMenuBillar::ACCIO_JUGAR:
+	case CMenuBillar::ACCIO_REINICIAR: ComencaPartida(); break;
+	case CMenuBillar::ACCIO_CONTINUAR: ContinuaPartida(); break;
+	case CMenuBillar::ACCIO_MENU: TornaAlMenu(); break;
+	default: break;
+	}
 }

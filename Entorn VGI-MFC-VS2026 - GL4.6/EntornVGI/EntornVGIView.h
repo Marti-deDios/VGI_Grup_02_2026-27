@@ -27,6 +27,7 @@
 #include "objLoader.h"
 #include "visualitzacio.h"
 #include "ReglesDosJugadors.h"
+#include "MenuBillar.h"
 
 // Entorn VGI. QUATERNIONS: Include per a la definició del tipus GL_QUAT i crida a les funcions de quatern.
 //#include "quatern.h"
@@ -228,6 +229,14 @@ public:
 	CPoint ultimPuntRatoli;
 
 
+	// Interficie original del menu i estat de la partida
+	CMenuBillar m_menu;
+	bool m_enMenu = true;
+	bool m_menuPendentInicialitzar = true;
+	bool m_pausa = false;
+	float m_segonsPartida = 0.0f;
+	bool MenuActiu() const { return m_enMenu && objecte == BILLAR; }
+
 	// Control de la deteccio de les bandes
 	bool alertaBandaDetectada = false;
 
@@ -352,6 +361,11 @@ public:
 	void ActualitzaFisicaBillar(float deltaTemps);
 	bool BolesAturadesBillar() const;
 	void ComencaTirBillar();
+	void PreparaMenuInicial();
+	void ComencaPartida();
+	void ContinuaPartida();
+	void TornaAlMenu();
+	void ExecutaAccioMenu(CMenuBillar::Accio accio);
 	void RecolocaBolaBlancaBillar();
 	bool PotMoureBlanca(float x, float y) const;
 	void MostraEstatPartida(const CString& nota = CString());
