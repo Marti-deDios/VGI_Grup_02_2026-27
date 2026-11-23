@@ -194,6 +194,8 @@ public:
 // Variables per controlar el temps del billar
 	ULONGLONG ultimTempsBillar = 0;
 	float tempsAcumulatBillar = 0.0f;
+	// Acumulador per executar la fisica amb un pas fix independent dels FPS.
+	float acumuladorFisicaBillar = 0.0f;
 
 
 	// Posicio i velocitat de la bola blanca
@@ -217,7 +219,8 @@ public:
 	bool bolesColorActives[15] = {};
 
 	float angleTac = 0.0f;
-	float forcaTir = 3.0f;
+	// Velocitat inicial efectiva de la punta del tac (unitats de taula/s).
+	float velocitatTacPunta = 0.0f;
 	float tempsAnimacioTac = 0.0f;
 	bool carregantTir = false;
 	bool modeCameraBillar = false;
