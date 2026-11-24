@@ -1293,7 +1293,8 @@ void CEntornVGIView::dibuixa_Escena()
 		posicioBolesColor, rotacioBolesColor, bolesColorActives,
 		angleTac, carregantTir ? (forcaTir - 2.0f) * 0.10f :
 		(animantTir ? (0.28f - tempsAnimacioTac * 1.6f) : 0.0f),
-		!MenuActiu() && bolaBlancaActiva && (BolesAturadesBillar() || animantTir));
+		!MenuActiu() && bolaBlancaActiva && (BolesAturadesBillar() || animantTir),
+		ObTaulaBillar);	// Taula del billar feta amb Blender (o NULL)
 }
 
 
@@ -4156,8 +4157,11 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 	const float diametre = 2.0f * radi;
 
 	// Cares interiors dels coixins verds (cub unitari escalat a escena.cpp).
-	const float limitX = 4.84f - radi;
-	const float limitY = 2.34f - radi;
+	// Taula OBJ (mesa_billar.obj, escala 3.85): camp de joc de 2.24 x 1.12 m -> 8.624 x 4.312.
+	// Taula procedural (si no es troba el fitxer OBJ): 9.68 x 4.68.
+	const bool taulaOBJ = (ObTaulaBillar != NULL);
+	const float limitX = (taulaOBJ ? 4.312f : 4.84f) - radi;
+	const float limitY = (taulaOBJ ? 2.156f : 2.34f) - radi;
 
 	const float restitucioBanda = 0.92f;
 	const float restitucioBoles = 0.96f;
@@ -4167,10 +4171,16 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 	const float radiCapturaTronera = 0.34f;
 
 	// Centres aproximats de les sis troneres dibuixades a escena.cpp.
-	const glm::vec2 troneres[6] = {
+	static const glm::vec2 troneresProcedural[6] = {
 		glm::vec2(-4.72f,  2.22f), glm::vec2(0.0f,  2.34f), glm::vec2(4.72f,  2.22f),
 		glm::vec2(-4.72f, -2.22f), glm::vec2(0.0f, -2.34f), glm::vec2(4.72f, -2.22f)
 	};
+	// Troneres de la taula OBJ: cantonades del camp de joc i centre de les bandes llargues.
+	static const glm::vec2 troneresOBJ[6] = {
+		glm::vec2(-4.312f,  2.156f), glm::vec2(0.0f,  2.252f), glm::vec2(4.312f,  2.156f),
+		glm::vec2(-4.312f, -2.156f), glm::vec2(0.0f, -2.252f), glm::vec2(4.312f, -2.156f)
+	};
+	const glm::vec2* troneres = taulaOBJ ? troneresOBJ : troneresProcedural;
 
 	glm::vec2 posicions[16];
 	glm::vec2 velocitats[16];
@@ -4339,8 +4349,6 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			{
 				velocitatBolaBlancaX = std::cos(angleTac) * forcaTir;
 				velocitatBolaBlancaY = std::sin(angleTac) * forcaTir;
-				//per a que es canvii la camera quan es tira 
-				OnCameraSuperior();
 				tirAplicat = true;
 			}
 			if (tempsAnimacioTac >= 0.32f)
@@ -7136,6 +7144,19 @@ void CEntornVGIView::OnObjecteBillar()
 	texturesBoles[13] = loadIMA_SOIL("textures/ball13.png"); // Bola 13
 	texturesBoles[14] = loadIMA_SOIL("textures/ball14.png"); // Bola 14
 	texturesBoles[15] = loadIMA_SOIL("textures/ball15.png"); // Bola 15
+
+	// --- TAULA DE BILLAR FETA AMB BLENDER (objectes/mesa_billar.obj + mesa_billar.mtl) ---
+	// Es carrega una sola vegada. Si el fitxer no es troba, el joc dibuixa la taula procedural.
+	if (ObTaulaBillar == NULL)
+	{
+		ObTaulaBillar = ::new COBJModel;
+		char fitxerTaula[] = ".\\objectes\\mesa_billar.obj";
+		if (ObTaulaBillar->LoadModel(fitxerTaula) != 0)
+		{
+			::delete ObTaulaBillar;
+			ObTaulaBillar = NULL;
+		}
+	}
 
 	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
 

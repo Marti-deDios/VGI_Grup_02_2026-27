@@ -46,7 +46,7 @@ public:
 
 	TipusCamera m_cameraAct = CAM_SUPERIOR;
 	float m_distanciaTir = 5.5f;
-	float m_distanciaPerSobre = 8.0f;
+	float m_distanciaPerSobre = 14.0f;
 
 	afx_msg void OnCameraTir();
 	afx_msg void OnCameraSuperior();
@@ -174,6 +174,7 @@ public:
 
 	// Entorn VGI: Objecte OBJ:
 	COBJModel* ObOBJ;		// Variable d'objecte format OBJ (*.OBJ)
+	COBJModel* ObTaulaBillar = NULL;	// Taula del billar (objectes/mesa_billar.obj). NULL = taula procedural
 	CVAO vao_OBJ;			// Identificador VAO per a objecte OBJ
 
 	// Entorn VGI: OBJECTE --> Corbes Bezier, BSpline, Catmull-Rom i Loxodroma

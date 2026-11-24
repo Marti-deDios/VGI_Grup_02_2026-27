@@ -22,7 +22,8 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
 	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
 	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
-	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac);
+	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac,
+	COBJModel* taulaOBJ);
 
 // Dibuixa Eixos Coordenades M�n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -88,7 +89,8 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac,
+	COBJModel* taulaOBJ)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -391,7 +393,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles,
 			posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca,
 			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives,
-			angleTac, desplacamentTac, mostrarTac);
+			angleTac, desplacamentTac, mostrarTac, taulaOBJ);
 		break;
 	}
 
@@ -404,7 +406,8 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac,
+	COBJModel* taulaOBJ)
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -425,6 +428,19 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		// Billar
 	case BILLAR:
 	{
+		// TAULA: si s'ha carregat objectes/mesa_billar.obj (model fet amb Blender) es dibuixa aquest model
+		// amb els seus materials. Si no, es dibuixa la taula procedural de sempre (branca else).
+		if (taulaOBJ != NULL)
+		{
+			CColor blancTaula = { 1.0f, 1.0f, 1.0f, 1.0f };
+			bool materialTaula[5] = { false, true, true, true, true };
+			SeleccionaColorMaterial(sh_programID, blancTaula, materialTaula);
+			glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_FALSE);
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &MatriuTG[0][0]);
+			taulaOBJ->draw_TriVAO_OBJ(sh_programID);	// Un VAO per a cada material del .mtl
+		}
+		else
+		{
 		// 1. Dibuixar el tapete de la mesa de billar (SENSE textura)
 		CColor verd;
 		verd.r = 0.0f; verd.g = 0.6f; verd.b = 0.15f; verd.a = 1.0f;
@@ -614,6 +630,8 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
+
+		}	// Fi de la taula procedural
 
 		bool materialBola[5] = { false, true, true, true, true };
 		float escalaBola = 0.55f;
