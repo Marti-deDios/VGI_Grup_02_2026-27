@@ -22,7 +22,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
 	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
 	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
-	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16]);
+	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca);
 
 // Dibuixa Eixos Coordenades M?n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -88,7 +88,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16])
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -391,7 +391,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles,
 			posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca,
 			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives,
-			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera);
+			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca);
 		break;
 	}
 
@@ -404,7 +404,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16])
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca)
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -684,6 +684,20 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 
 		glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_FALSE);
 		glUniform1i(glGetUniformLocation(sh_programID, "texturaActiva"), 0);
+
+		if (mostrarLiniaBlanca)
+		{
+			CColor colorLinia;
+			colorLinia.r = 0.95f;
+			colorLinia.g = 0.81f;
+			colorLinia.b = 0.38f;
+			colorLinia.a = 1.0f;
+			SeleccionaColorMaterial(sh_programID, colorLinia, materialBola);
+			glm::mat4 marca = glm::translate(MatriuTG, vec3(-3.0f, 0.0f, 0.151f));
+			marca = glm::scale(marca, vec3(0.025f, 4.25f, 0.007f));
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &marca[0][0]);
+			draw_TriEBO_Object(GLUT_CUBE);
+		}
 
 		if (mostrarTac && bolaBlancaActiva)
 		{

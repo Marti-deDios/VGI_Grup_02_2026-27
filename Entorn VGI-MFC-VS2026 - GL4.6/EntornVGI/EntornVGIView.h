@@ -226,6 +226,10 @@ public:
 	bool carregantTir = false;
 	bool modeCameraBillar = false;
 	bool m_tornarCameraTir = false;
+	bool m_arrossegantBlanca = false;
+	std::wstring m_avisPartida;
+	float m_tempsAvisPartida = 0.0f;
+	bool m_avisEsFalta = false;
 	bool animantTir = false;
 	bool tirAplicat = false;
 	bool ratoliInicialitzat = false;
@@ -245,6 +249,7 @@ public:
 	glm::vec2 m_entradaForat[16] = {};
 	glm::vec2 m_centreForat[16] = {};
 	bool MenuActiu() const { return m_enMenu && objecte == BILLAR; }
+	bool MouBlancaAmbRatoli(CPoint point);
 
 	// Control de la deteccio de les bandes
 	bool alertaBandaDetectada = false;

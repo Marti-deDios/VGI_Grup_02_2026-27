@@ -28,6 +28,9 @@ public:
 		int restants1 = 7;
 		int restants2 = 7;
 		int tirsDisponibles = 1;
+		bool embocades[16] = {};
+		std::wstring missatge;
+		bool missatgeFalta = false;
 		int grup1 = 0;
 		int grup2 = 0;
 		int segons = 0;

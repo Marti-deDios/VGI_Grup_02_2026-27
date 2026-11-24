@@ -6,6 +6,7 @@ class ReglesDosJugadors
 {
 public:
     enum class Resultat { Cap, Continua, CanviTorn, Falta, Victoria, Derrota, RepetirTrencada };
+    enum class MotiuFalta { Cap, BlancaEmbocada, SenseContacte, ContacteIncorrecte, SenseBanda };
 
     void reinicia()
     {
@@ -24,6 +25,7 @@ public:
         blancaEnMa_ = false;
         primerContacte_ = 0;
         primeraColor_ = 0;
+        motiuUltimaFalta_ = MotiuFalta::Cap;
         bandaDespresContacte_ = false;
         embocadesTir_.fill(false);
         return true;
@@ -76,6 +78,10 @@ public:
             contacteIncorrecte = contacteIncorrecte || !esDelGrup(primerContacte_, grupActual);
 
         const bool falta = embocadesTir_[0] || contacteIncorrecte || (!hiHaEmbocades && !bandaDespresContacte_);
+        if (embocadesTir_[0]) motiuUltimaFalta_ = MotiuFalta::BlancaEmbocada;
+        else if (primerContacte_ == 0) motiuUltimaFalta_ = MotiuFalta::SenseContacte;
+        else if (contacteIncorrecte) motiuUltimaFalta_ = MotiuFalta::ContacteIncorrecte;
+        else if (!hiHaEmbocades && !bandaDespresContacte_) motiuUltimaFalta_ = MotiuFalta::SenseBanda;
 
         if (embocadesTir_[8])
         {
@@ -124,6 +130,7 @@ public:
 
     int jugadorActual() const { return jugador_; }
     int tirsDisponibles() const { return tirsDisponibles_; }
+    MotiuFalta motiuUltimaFalta() const { return motiuUltimaFalta_; }
     int guanyador() const { return guanyador_; }
     int grupJugador(int jugador) const { return jugador >= 1 && jugador <= 2 ? grup_[jugador - 1] : 0; }
     bool blancaEnMa() const { return blancaEnMa_; }
@@ -162,6 +169,7 @@ private:
 
     int jugador_ = 1;
     int tirsDisponibles_ = 1;
+    MotiuFalta motiuUltimaFalta_ = MotiuFalta::Cap;
     int guanyador_ = 0;
     int grup_[2] = { 0, 0 };
     bool trencada_ = true;

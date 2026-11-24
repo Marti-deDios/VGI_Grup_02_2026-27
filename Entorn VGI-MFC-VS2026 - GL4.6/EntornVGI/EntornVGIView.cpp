@@ -39,6 +39,7 @@
 #include "escena.h"			// Entorn VGI: Include funcions d'objectes OpenGL
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
 //#include "fractals.h"		// Entorn VGI: FRACTALS. Include funcions fractals
 
 #ifdef _DEBUG
@@ -1226,6 +1227,10 @@ void CEntornVGIView::OnPaint()
 			hud.restants1 = partidaDosJugadors.bolesRestants(1);
 			hud.restants2 = partidaDosJugadors.bolesRestants(2);
 			hud.tirsDisponibles = partidaDosJugadors.tirsDisponibles();
+			hud.missatge = m_tempsAvisPartida > 0.0f ? m_avisPartida : L"";
+			hud.missatgeFalta = m_avisEsFalta;
+			for (int i = 1; i <= 15; ++i)
+				hud.embocades[i] = !bolesColorActives[i - 1];
 			hud.segons = (int)m_segonsPartida;
 			hud.forca = (std::min)(1.0f, velocitatTacPunta / 3.5f);
 			hud.superior = m_cameraAct == CAM_SUPERIOR;
@@ -1357,7 +1362,8 @@ void CEntornVGIView::dibuixa_Escena()
 		posicionsVisuals, rotacioBolesColor, bolesVisuals,
 		angleTac, desplacamentTac,
 		(!MenuActiu() || m_pausa) && bolaBlancaActiva && (BolesAturadesBillar() || animantTir),
-		enfonsamentTronera);
+		enfonsamentTronera,
+		!MenuActiu() && partidaDosJugadors.blancaEnMa());
 }
 
 
@@ -1678,6 +1684,7 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_enMenu = true;
 		m_pausa = true;
 		carregantTir = false;
+		m_arrossegantBlanca = false;
 		m_carregantEspai = false;
 		if (::GetCapture() == m_hWnd) ReleaseCapture();
 		m_menu.MostraPausa();
@@ -1724,13 +1731,11 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 			BolesAturadesBillar() && !animantTir &&
 			(nChar == 'I' || nChar == 'J' || nChar == 'K' || nChar == 'L'))
 		{
-			float x = posicioBolaBlancaX;
+			const float x = -3.0f;
 			float y = posicioBolaBlancaY;
 			const float pas = 0.14f;
-			if (nChar == 'I') y += pas;
-			if (nChar == 'K') y -= pas;
-			if (nChar == 'J') x -= pas;
-			if (nChar == 'L') x += pas;
+			if (nChar == 'I' || nChar == 'L') y += pas;
+			if (nChar == 'K' || nChar == 'J') y -= pas;
 			if (PotMoureBlanca(x, y))
 			{
 				posicioBolaBlancaX = x;
@@ -3635,6 +3640,13 @@ void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
 		SetFocus();
+		if (partidaDosJugadors.blancaEnMa() && bolaBlancaActiva &&
+			BolesAturadesBillar() && !animantTir && MouBlancaAmbRatoli(point))
+		{
+			m_arrossegantBlanca = true;
+			SetCapture();
+			return;
+		}
 		if (BolesAturadesBillar() && bolaBlancaActiva && !animantTir && !m_carregantEspai)
 		{
 			carregantTir = true;
@@ -3671,6 +3683,13 @@ void CEntornVGIView::OnLButtonUp(UINT nFlags, CPoint point)
 
 	if (objecte == BILLAR && !modeCameraBillar)
 	{
+		if (m_arrossegantBlanca)
+		{
+			MouBlancaAmbRatoli(point);
+			m_arrossegantBlanca = false;
+			if (::GetCapture() == m_hWnd) ReleaseCapture();
+			return;
+		}
 		if (carregantTir)
 		{
 			carregantTir = false;
@@ -3768,6 +3787,11 @@ void CEntornVGIView::OnRButtonUp(UINT /* nFlags */, CPoint point)
 //							 (coord. pantalla) quan el botó s'ha apretat.
 void CEntornVGIView::OnMouseMove(UINT nFlags, CPoint point)
 {
+	if (objecte == BILLAR && m_arrossegantBlanca)
+	{
+		MouBlancaAmbRatoli(point);
+		return;
+	}
 	if (MenuActiu())
 	{
 		m_menu.RatoliMou(point.x, point.y, w, h);
@@ -4163,6 +4187,9 @@ void CEntornVGIView::ComencaTirBillar()
 void CEntornVGIView::ReiniciaBolesBillar()
 {
 	m_tornarCameraTir = false;
+	m_arrossegantBlanca = false;
+	m_tempsAvisPartida = 0.0f;
+	m_avisPartida.clear();
 	// La bola blanca comenca alineada amb el centre del rack per fer el primer xoc.
 	posicioBolaBlancaX = -3.0f;
 	posicioBolaBlancaY = 0.0f;
@@ -4226,44 +4253,51 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	MostraEstatPartida(_T("Nova partida"));
 }
 
+bool CEntornVGIView::MouBlancaAmbRatoli(CPoint point)
+{
+    if (!partidaDosJugadors.blancaEnMa() || !bolaBlancaActiva || w <= 0 || h <= 0)
+        return false;
+
+    const glm::vec4 viewport(0.0f, 0.0f, (float)w, (float)h);
+    const glm::vec3 inici = glm::unProject(glm::vec3((float)point.x, (float)(h - point.y), 0.0f),
+        ViewMatrix, ProjectionMatrix, viewport);
+    const glm::vec3 final = glm::unProject(glm::vec3((float)point.x, (float)(h - point.y), 1.0f),
+        ViewMatrix, ProjectionMatrix, viewport);
+    const float diferenciaZ = final.z - inici.z;
+    if (std::abs(diferenciaZ) < 0.00001f) return false;
+    const float t = (0.15f - inici.z) / diferenciaZ;
+    if (t < 0.0f || t > 1.0f) return false;
+    const glm::vec3 punt = inici + t * (final - inici);
+    if (std::abs(punt.x + 3.0f) > 0.85f) return false;
+    const float novaY = (std::max)(-2.15f, (std::min)(2.15f, punt.y));
+    if (!PotMoureBlanca(-3.0f, novaY)) return false;
+
+    posicioBolaBlancaX = -3.0f;
+    posicioBolaBlancaY = novaY;
+    velocitatBolaBlancaX = 0.0f;
+    velocitatBolaBlancaY = 0.0f;
+    InvalidateRect(NULL, false);
+    return true;
+}
+
 void CEntornVGIView::RecolocaBolaBlancaBillar()
 {
-	if (bolaBlancaActiva || (!BolesAturadesBillar() && tempsBolaBlancaFora < 1.5f))
-		return;
-
-	const float separacioMinima = 0.222f;
-	const float separacioMinima2 = separacioMinima * separacioMinima;
-	for (int fila = 0; fila < 11; ++fila)
-	{
-		const float y = fila == 0 ? 0.0f :
-			(fila % 2 == 1 ? 1.0f : -1.0f) * ((fila + 1) / 2) * 0.36f;
-		for (int columna = 0; columna < 18; ++columna)
-		{
-			const glm::vec2 candidat(-3.0f + columna * 0.35f, y);
-			bool ocupat = false;
-			for (int i = 0; i < 15; ++i)
-			{
-				if (!bolesColorActives[i]) continue;
-				const glm::vec2 separacio = candidat - posicioBolesColor[i];
-				if (glm::dot(separacio, separacio) < separacioMinima2)
-				{
-					ocupat = true;
-					break;
-				}
-			}
-			if (ocupat) continue;
-
-			posicioBolaBlancaX = candidat.x;
-			posicioBolaBlancaY = candidat.y;
-			velocitatBolaBlancaX = 0.0f;
-			velocitatBolaBlancaY = 0.0f;
-			rotacioBolaBlanca = glm::mat4(1.0f);
-			bolaBlancaActiva = true;
-			tempsBolaBlancaFora = 0.0f;
-			velocitatTacPunta = 0.0f;
-			return;
-		}
-	}
+    if (!partidaDosJugadors.blancaEnMa() || !BolesAturadesBillar()) return;
+    // Línia de sortida x=-3.0: escollim la primera posicio lliure.
+    for (int i = 0; i <= 22; ++i)
+    {
+        const float y = i == 0 ? 0.0f : (i % 2 == 1 ? 1.0f : -1.0f) * ((i + 1) / 2) * 0.19f;
+        if (!PotMoureBlanca(-3.0f, y)) continue;
+        posicioBolaBlancaX = -3.0f;
+        posicioBolaBlancaY = y;
+        velocitatBolaBlancaX = 0.0f;
+        velocitatBolaBlancaY = 0.0f;
+        rotacioBolaBlanca = glm::mat4(1.0f);
+        bolaBlancaActiva = true;
+        tempsBolaBlancaFora = 0.0f;
+        velocitatTacPunta = 0.0f;
+        return;
+    }
 }
 
 bool CEntornVGIView::PotMoureBlanca(float x, float y) const
@@ -4418,6 +4452,9 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			m_tempsForat[i] = 0.42f;
 			m_entradaForat[i] = posicions[i];
 			m_centreForat[i] = troneres[indexTronera];
+			m_avisPartida = i == 0 ? L"BOLA BLANCA EMBOCADA!" : L"BOLA " + std::to_wstring(i) + L" EMBOCADA!";
+			m_tempsAvisPartida = 1.6f;
+			m_avisEsFalta = i == 0;
 			partidaDosJugadors.registraEmbocada(i);
 			actives[i] = false;
 			velocitats[i] = glm::vec2(0.0f, 0.0f);
@@ -4668,6 +4705,7 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		}
 		for (int i = 0; i < 16; ++i)
 			m_tempsForat[i] = (std::max)(0.0f, m_tempsForat[i] - deltaTemps);
+		m_tempsAvisPartida = (std::max)(0.0f, m_tempsAvisPartida - deltaTemps);
 
 		if (animantTir)
 		{
@@ -4717,6 +4755,29 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		if (partidaDosJugadors.tirEnCurs() && tirAplicat && !animantTir && BolesAturadesBillar())
 		{
 			const ReglesDosJugadors::Resultat resultat = partidaDosJugadors.finalitzaTir();
+			m_avisEsFalta = resultat == ReglesDosJugadors::Resultat::Falta;
+			m_tempsAvisPartida = 3.3f;
+			if (resultat == ReglesDosJugadors::Resultat::Falta)
+			{
+			switch (partidaDosJugadors.motiuUltimaFalta())
+			{
+			case ReglesDosJugadors::MotiuFalta::BlancaEmbocada: m_avisPartida = L"FALTA: BLANCA EMBOCADA - 2 TIRS"; break;
+			case ReglesDosJugadors::MotiuFalta::SenseContacte: m_avisPartida = L"FALTA: SENSE CONTACTE - 2 TIRS"; break;
+			case ReglesDosJugadors::MotiuFalta::ContacteIncorrecte: m_avisPartida = L"FALTA: BOLA INCORRECTA - 2 TIRS"; break;
+			case ReglesDosJugadors::MotiuFalta::SenseBanda: m_avisPartida = L"FALTA: SENSE BANDA - 2 TIRS"; break;
+			default: m_avisPartida = L"FALTA: 2 TIRS AL RIVAL"; break;
+			}
+			RecolocaBolaBlancaBillar();
+			}
+			else if (resultat == ReglesDosJugadors::Resultat::CanviTorn)
+				m_avisPartida = L"TORN DEL JUGADOR " + std::to_wstring(partidaDosJugadors.jugadorActual());
+			else if (resultat == ReglesDosJugadors::Resultat::Continua)
+				m_avisPartida = partidaDosJugadors.tirsDisponibles() > 1 ? L"ENCARA TENS 2 TIRS" : L"CONTINUES JUGANT";
+			else if (resultat == ReglesDosJugadors::Resultat::Victoria)
+				m_avisPartida = L"VICTORIA!";
+			else if (resultat == ReglesDosJugadors::Resultat::Derrota)
+				m_avisPartida = L"NEGRA INCORRECTA: DERROTA";
+			else m_avisPartida.clear();
 			if (resultat == ReglesDosJugadors::Resultat::RepetirTrencada)
 			{
 				ReiniciaBolesBillar();
@@ -7616,6 +7677,7 @@ void CEntornVGIView::ContinuaPartida()
 void CEntornVGIView::TornaAlMenu()
 {
 	carregantTir = false;
+	m_arrossegantBlanca = false;
 	m_ButoEAvall = false;
 	ratoliInicialitzat = false;
 	if (::GetCapture() == m_hWnd) ReleaseCapture();

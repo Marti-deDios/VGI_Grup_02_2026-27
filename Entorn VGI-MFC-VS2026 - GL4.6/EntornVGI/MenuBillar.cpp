@@ -17,7 +17,7 @@ namespace
 
 	const wchar_t* const ETIQUETES_PRINCIPAL[4] = { L"COMENÇAR PARTIDA", L"NORMES DEL JOC", L"CONTROLS I AJUDA", L"CRÈDITS" };
 	const wchar_t* const ETIQUETES_PAUSA[4] = { L"CONTINUAR", L"NORMES DEL JOC", L"REINICIAR PARTIDA", L"TORNAR AL MENÚ" };
-	const wchar_t* const ETIQUETES_FINAL[2] = { L"TORNAR A JUGAR", L"MENÚ PRINCIPAL" };
+	const wchar_t* const ETIQUETES_FINAL[2] = { L"REVENJA", L"MENÚ PRINCIPAL" };
 	const wchar_t* const ETIQUETA_TORNAR = L"TORNAR";
 
 	// ---- Pantalla CONTROLS: tecla / accio ----
@@ -552,7 +552,7 @@ void CMenuBillar::DibuixaNormes(const Disseny& d)
 		L"FALTA: no toques cap bola -> el rival te DOS TIRS.",
 		L"FALTA: primer contacte incorrecte -> DOS TIRS.",
 		L"FALTA: ni embocada ni banda posterior -> DOS TIRS.",
-		L"Despres de falta: blanca en ma amb I / J / K / L.",
+		L"Despres de falta: blanca a la linia amb ratoli o I/K.",
 		L"Negra prematura o amb falta: partida perduda."
 	};
 	for (int i = 0; i < 9; ++i)
@@ -574,9 +574,11 @@ void CMenuBillar::DibuixaVictoria(const Disseny& d)
 	const float s = d.s;
 	const Rect& p = d.panell;
 	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
-	DibuixaText(L"FINAL DE PARTIDA", d.w * 0.5f, p.y + 49.0f * s, Px(33.0f, s), true, COLOR_DAURAT, 1);
-	const std::wstring text = L"GUANYADOR: JUGADOR " + std::to_wstring(m_guanyador);
-	DibuixaText(text, d.w * 0.5f, p.y + 97.0f * s, Px(30.0f, s), true, COLOR_BLANC, 1);
+	DibuixaText(L"CAMPIONS DEL TAPET", d.w * 0.5f, p.y + 49.0f * s, Px(36.0f, s), true, COLOR_DAURAT, 1);
+	Pla(p.x + 75.0f * s, p.y + 81.0f * s, p.w - 150.0f * s, 2.0f * s, COLOR_LINIA);
+	const std::wstring text = L"VICTORIA DEL JUGADOR " + std::to_wstring(m_guanyador);
+	DibuixaText(text, d.w * 0.5f, p.y + 106.0f * s, Px(30.0f, s), true, COLOR_BLANC, 1);
+	DibuixaText(L"UNA PARTIDA PER RECORDAR", d.w * 0.5f, p.y + 145.0f * s, Px(17.0f, s), false, COLOR_DAURAT, 1);
 	for (int i = 0; i < 2; ++i) DibuixaBoto(d.boto[i], ETIQUETES_FINAL[i], m_anim[i], s);
 }
 
@@ -586,7 +588,7 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 	const float marge = 16.0f * s;
 	const float separacio = 10.0f * s;
 	const float ample = (d.w - marge * 2.0f - separacio) * 0.5f;
-	const float alt = 80.0f * s;
+	const float alt = 113.0f * s;
 	const float actiu[4] = { 0.10f, 0.34f, 0.24f, 0.94f };
 	const float voraFosca[4] = { 0.17f, 0.24f, 0.21f, 1.0f };
 	for (int j = 1; j <= 2; ++j)
@@ -600,6 +602,31 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 		const wchar_t* grupText = grup == 1 ? L"LLISES" : grup == 2 ? L"RATLLADES" : L"SENSE ASSIGNAR";
 		DibuixaText(grupText, r.x + 20.0f * s, r.y + 52.0f * s, Px(16.0f, s), false, COLOR_GRIS, 0);
 		DibuixaText(std::to_wstring(restants) + L" / 7", r.x + r.w - 20.0f * s, r.y + 37.0f * s, Px(25.0f, s), true, act ? COLOR_DAURAT : COLOR_BLANC, 2);
+		const float colors[7][4] = {
+			{ 0.95f, 0.75f, 0.12f, 1.0f }, { 0.12f, 0.40f, 0.83f, 1.0f },
+			{ 0.84f, 0.16f, 0.16f, 1.0f }, { 0.45f, 0.23f, 0.68f, 1.0f },
+			{ 0.94f, 0.43f, 0.11f, 1.0f }, { 0.13f, 0.52f, 0.35f, 1.0f },
+			{ 0.53f, 0.18f, 0.15f, 1.0f }
+		};
+		const float apagada[4] = { 0.25f, 0.30f, 0.27f, 0.75f };
+		const int primer = grup == 2 || (grup == 0 && j == 2) ? 9 : 1;
+		for (int i = 0; i < 7; ++i)
+		{
+			const int bola = primer + i;
+			const Rect cercle{ r.x + (20.0f + i * 30.0f) * s, r.y + 73.0f * s, 22.0f * s, 22.0f * s };
+			RectArrodonit(cercle, info.embocades[bola] ? apagada : colors[i], COLOR_DAURAT, 11.0f * s, 1.0f * s);
+			DibuixaText(std::to_wstring(bola), cercle.x + cercle.w * 0.5f, cercle.y + cercle.h * 0.5f,
+				Px(13.0f, s), true, info.embocades[bola] ? COLOR_GRIS : COLOR_BLANC, 1);
+		}
+	}
+	if (!info.missatge.empty())
+	{
+		const float ampleAvis = (std::min)(680.0f * s, d.w - 40.0f * s);
+		const Rect avis{ (d.w - ampleAvis) * 0.5f, 128.0f * s, ampleAvis, 59.0f * s };
+		const float vermell[4] = { 0.36f, 0.09f, 0.09f, 0.95f };
+		RectArrodonit(avis, info.missatgeFalta ? vermell : COLOR_PANELL, COLOR_DAURAT, 12.0f * s, 2.0f * s);
+		DibuixaText(info.missatge, d.w * 0.5f, avis.y + 30.0f * s,
+			Px(20.0f, s), true, COLOR_BLANC, 1);
 	}
 	const float yPeu = d.h - 71.0f * s;
 	const Rect peu{ marge, yPeu, d.w - 2.0f * marge, 56.0f * s };
@@ -617,8 +644,8 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 	swprintf_s(temps, 32, L"%02d:%02d", minuts, segons);
 	DibuixaText(temps, peu.x + peu.w - 22.0f * s, yPeu + 22.0f * s, Px(19.0f, s), true, COLOR_DAURAT, 2);
 	const wchar_t* indicacio = info.tirsDisponibles > 1 ?
-		(info.blancaEnMa ? L"FALTA: 2 TIRS. BLANCA EN MA: I/J/K/L" : L"TENS 2 TIRS") :
-		(info.blancaEnMa ? L"BLANCA EN MA: I / J / K / L" : L"ESC: PAUSA  ·  R: REINICIAR");
+		(info.blancaEnMa ? L"FALTA: 2 TIRS. MOU LA BLANCA A LA LINIA" : L"TENS 2 TIRS") :
+		(info.blancaEnMa ? L"BLANCA EN MA: ARROSSEGA SOBRE LA LINIA (I/K)" : L"ESC: PAUSA  ·  R: REINICIAR");
 	DibuixaText(indicacio, peu.x + 19.0f * s, yPeu + 43.0f * s, Px(13.0f, s), false, info.tirsDisponibles > 1 ? COLOR_DAURAT : COLOR_GRIS, 0);
 }
 
