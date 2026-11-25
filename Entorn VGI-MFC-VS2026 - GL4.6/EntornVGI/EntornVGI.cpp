@@ -13,10 +13,19 @@
 #include "EntornVGIDoc.h"
 #include "EntornVGIView.h"
 
+#define MINIAUDIO_IMPLEMENTATION
+#include "miniaudio.h"
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
+// Variables per gestionar la musica
+static ma_engine engine;
+static ma_sound musica;
+
+static bool audioInicialitzat = false;
+static bool musicaInicialitzada = false;
 
 // CEntornVGIApp
 
@@ -59,6 +68,57 @@ CEntornVGIApp::CEntornVGIApp() noexcept
 
 CEntornVGIApp theApp;
 
+
+void IniciarMusica()
+{
+	// Inicialitzar el motor d'audio
+	if (ma_engine_init(NULL, &engine) != MA_SUCCESS)
+	{
+		TRACE("Error inicialitzant l'audio\n");
+		return;
+	}
+
+	audioInicialitzat = true;
+
+	// Carregar la canco
+	if (ma_sound_init_from_file(
+		&engine,
+		"Musica\\billar.mp3",
+		MA_SOUND_FLAG_STREAM,
+		NULL,
+		NULL,
+		&musica) != MA_SUCCESS)
+	{
+		TRACE("Error carregant la musica\n");
+
+		ma_engine_uninit(&engine);
+		audioInicialitzat = false;
+		return;
+	}
+
+	musicaInicialitzada = true;
+
+	// Activar reproduccio en bucle
+	ma_sound_set_looping(&musica, MA_TRUE);
+
+	// Comencar a reproduir
+	ma_sound_start(&musica);
+}
+
+void AturarMusica()
+{
+	if (musicaInicialitzada)
+	{
+		ma_sound_uninit(&musica);
+		musicaInicialitzada = false;
+	}
+
+	if (audioInicialitzat)
+	{
+		ma_engine_uninit(&engine);
+		audioInicialitzat = false;
+	}
+}
 
 // Inicialización de CEntornVGIApp
 
@@ -143,6 +203,10 @@ BOOL CEntornVGIApp::InitInstance()
 	// la aplicación se inició con los modificadores /RegServer, /Register, /Unregserver o /Unregister.
 	if (!ProcessShellCommand(cmdInfo))
 		return FALSE;
+
+	// Iniciar musica de fons
+	IniciarMusica();
+
 	// La ventana principal se ha inicializado; mostrarla y actualizarla
 	pMainFrame->ShowWindow(m_nCmdShow);
 	pMainFrame->UpdateWindow();
@@ -152,6 +216,8 @@ BOOL CEntornVGIApp::InitInstance()
 
 int CEntornVGIApp::ExitInstance()
 {
+	AturarMusica();
+
 	//TODO: controlar recursos adicionales que se hayan podido agregar
 	AfxOleTerm(FALSE);
 
