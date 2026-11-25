@@ -69,6 +69,7 @@ BEGIN_MESSAGE_MAP(CEntornVGIView, CView)
 	ON_WM_CREATE()
 	ON_WM_DESTROY()
 	ON_WM_KEYDOWN()
+    ON_WM_SETCURSOR()
 	ON_WM_KEYUP()
 	ON_WM_LBUTTONDOWN()
 	ON_WM_LBUTTONUP()
@@ -1686,8 +1687,52 @@ void CEntornVGIView::double2CString(double varf)
 //    - nChar: Codi del caracter seleccionat
 //    - nRepCnt: Nombre de vegades que s'ha apretat la tecla (acceleració)
 //    - nFlags: Flags d'interrupció activats.
+BOOL CEntornVGIView::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
+{
+    if (objecte == BILLAR && nHitTest == HTCLIENT)
+    {
+        CPoint pt; ::GetCursorPos(&pt); ScreenToClient(&pt);
+        // El cursor reapareix al menu, sobre PAUSA i per recol.locar la blanca.
+        const bool visible = MenuActiu() || m_menu.BotoPausa(pt.x,pt.y,w,h) ||
+            partidaDosJugadors.blancaEnMa();
+        ::SetCursor(visible ? ::LoadCursor(NULL, IDC_ARROW) : NULL);
+        return TRUE;
+    }
+    return CView::OnSetCursor(pWnd,nHitTest,message);
+}
+
+void CEntornVGIView::ActualitzaEspaiClassic(bool premut)
+{
+    if (!premut)
+    {
+        espaiClassicBloquejat = false;
+        if (m_carregantEspai)
+        {
+            m_carregantEspai = false;
+            ComencaTirBillar();
+        }
+        return;
+    }
+    if (espaiClassicBloquejat) return;
+    espaiClassicBloquejat = true;
+    if (!m_carregantEspai && !carregantTir && !animantTir && bolaBlancaActiva &&
+        BolesAturadesBillar() && partidaDosJugadors.potTirar())
+    {
+        if (modeCameraBillar) OnCameraTir();
+        m_carregantEspai = true;
+        m_tempsCarregaEspai = 0.0f;
+        velocitatTacPunta = 0.55f;
+        InvalidateRect(NULL, false);
+    }
+}
+
 void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+    if (objecte == BILLAR && !MenuActiu() && modeJocActual == MODE_CLASSIC && nChar == VK_SPACE)
+    {
+        ActualitzaEspaiClassic(true);
+        return;
+    }
     if (objecte == BILLAR && nChar == 'F') { OnVistaFullScreen(); return; }
 	if (MenuActiu())
 	{
@@ -1848,6 +1893,12 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 void CEntornVGIView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+    if (objecte == BILLAR && modeJocActual == MODE_CLASSIC && nChar == VK_SPACE)
+    {
+        if (MenuActiu()) { espaiClassicBloquejat = true; m_carregantEspai = false; }
+        else ActualitzaEspaiClassic(false);
+        return;
+    }
 	if (objecte == BILLAR && nChar == VK_SPACE)
 	{
 		if (m_carregantEspai)
@@ -4229,6 +4280,7 @@ void CEntornVGIView::ComencaTirBillar()
 
 void CEntornVGIView::ReiniciaBolesBillar()
 {
+    espaiClassicBloquejat = true;
 	m_tornarCameraTir = false;
 	m_arrossegantBlanca = false;
 	m_tempsAvisPartida = 0.0f;
@@ -4429,12 +4481,12 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 	// desacceleracio (unitats de taula/s^2), independent dels FPS.
 	// Amb el tir minim v0=2.25 i a=0.40, la blanca recorre els 5.38
 	// unitats fins al rack i hi arriba a uns 0.87 unitats/s: contacte suau.
-	const float desacceleracioRodolament = 0.40f;
+	const float desacceleracioRodolament = modeJocActual == MODE_CLASSIC ? 0.34f : 0.40f;
 	const float restitucioBoles = 0.94f;
 	const float restitucioBanda = 0.88f;
 	const float fregamentTangencialBanda = 0.985f;
 	const float velocitatMinima = 0.010f;
-	const float radiCapturaTronera = 0.22f;
+	const float radiCapturaTronera = modeJocActual == MODE_CLASSIC ? 0.30f : 0.22f; // VGI_POCKET_FIX_V3
 	const float margeContacte = 0.0015f;
 	const float velocitatImpacteMinima = 0.0005f;
 
@@ -4785,6 +4837,9 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		}
 		if (MenuActiu())
 		{
+            espaiClassicBloquejat = true;
+            m_carregantEspai = false;
+            if (::GetFocus() == m_hWnd) ::SetCursor(::LoadCursor(NULL, IDC_ARROW));
 			ultimTempsBillar = GetTickCount64();
 			InvalidateRect(NULL, false);
 			return;
@@ -4798,10 +4853,40 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 		deltaTemps = (std::max)(0.0f, (std::min)(deltaTemps, 0.10f));
 		m_segonsPartida += deltaTemps;
 		tempsAcumulatBillar += deltaTemps;
+        if (modeJocActual == MODE_CLASSIC)
+        {
+            // Alternativa al WM_KEYDOWN/UP quan el contenidor MFC intercepta Espai.
+            DWORD pid = 0;
+            ::GetWindowThreadProcessId(::GetForegroundWindow(), &pid);
+            if (pid == ::GetCurrentProcessId())
+                ActualitzaEspaiClassic((::GetAsyncKeyState(VK_SPACE) & 0x8000) != 0);
+            else
+            {
+                if (m_carregantEspai) { m_carregantEspai = false; velocitatTacPunta = 0.0f; }
+                espaiClassicBloquejat = true;
+            }
+        }
+        if (::GetFocus() == m_hWnd)
+        {
+            CPoint pt; ::GetCursorPos(&pt); ScreenToClient(&pt);
+            CRect area; GetClientRect(&area);
+            if (area.PtInRect(pt))
+                OnSetCursor(this, HTCLIENT, WM_MOUSEMOVE);
+        }
 		if (m_carregantEspai)
 		{
-			m_tempsCarregaEspai = (std::min)(1.6f, m_tempsCarregaEspai + deltaTemps);
-			velocitatTacPunta = 0.65f + 2.85f * (m_tempsCarregaEspai / 1.6f);
+			// VGI_FISICA_FUTURISTA_V2
+            if (modeJocActual == MODE_CLASSIC)
+            {
+                m_tempsCarregaEspai = (std::min)(1.45f, m_tempsCarregaEspai + deltaTemps);
+                const float fraccioCarrega = m_tempsCarregaEspai / 1.45f;
+                velocitatTacPunta = 0.55f + 2.95f * std::pow(fraccioCarrega, 1.06f);
+            }
+            else
+            {
+                m_tempsCarregaEspai = (std::min)(1.6f, m_tempsCarregaEspai + deltaTemps);
+                velocitatTacPunta = 0.65f + 2.85f * (m_tempsCarregaEspai / 1.6f);
+            }
 		}
 		for (int i = 0; i < 16; ++i)
 			m_tempsForat[i] = (std::max)(0.0f, m_tempsForat[i] - deltaTemps);
@@ -4819,9 +4904,9 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 				const float massaBolaKg = 0.170f;
 				const float massaTacEfectivaKg = 0.500f;
 				const float metresPerUnitatTaula = 2.54f / 9.68f;
-				const float restitucioTac = 0.82f;
+				const float restitucioTac = modeJocActual == MODE_CLASSIC ? 0.76f : 0.82f;
 				// Temps mitja aproximat d'impacte tac-bola (1-2 ms).
-				const float tempsContacteTac = 0.0015f;
+				const float tempsContacteTac = modeJocActual == MODE_CLASSIC ? 0.0018f : 0.0015f;
 				const float velocitatTacMetresSegon =
 					velocitatTacPunta * metresPerUnitatTaula;
 				const float massaReduida = 1.0f /
@@ -4831,10 +4916,12 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 				const float forcaMitjanaTacN = impulsTac / tempsContacteTac;
 				const float velocitatBolaMetresSegon =
 					(forcaMitjanaTacN * tempsContacteTac) / massaBolaKg;
-				const float velocitatBolaUnitatsTaula =
-					velocitatBolaMetresSegon / metresPerUnitatTaula;
+				const float velocitatBolaUnitatsTaulaSenseClamp = velocitatBolaMetresSegon / metresPerUnitatTaula;
+                const float velocitatBolaUnitatsTaula = modeJocActual == MODE_CLASSIC ?
+                    (std::min)(4.70f, velocitatBolaUnitatsTaulaSenseClamp) : velocitatBolaUnitatsTaulaSenseClamp;
 				const glm::vec2 direccioTir(std::cos(angleTac), std::sin(angleTac));
-				velocitatBolaBlancaX = direccioTir.x * velocitatBolaUnitatsTaula;
+				SoCopTac();
+                velocitatBolaBlancaX = direccioTir.x * velocitatBolaUnitatsTaula;
 				velocitatBolaBlancaY = direccioTir.y * velocitatBolaUnitatsTaula;
 				m_tornarCameraTir = !modeCameraBillar && m_cameraAct == CAM_TIR;
 				OnCameraSuperior();
@@ -4844,7 +4931,7 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 				animantTir = false;
 		}
 
-		const float pasFix = 1.0f / 240.0f;
+		const float pasFix = modeJocActual == MODE_CLASSIC ? 1.0f / 300.0f : 1.0f / 240.0f;
 		acumuladorFisicaBillar += deltaTemps;
 		while (acumuladorFisicaBillar >= pasFix)
 		{
@@ -4854,6 +4941,8 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 
 		if (partidaDosJugadors.tirEnCurs() && tirAplicat && !animantTir && BolesAturadesBillar())
 		{
+            velocitatTacPunta = 0.0f;
+            const bool grupPendent = partidaDosJugadors.grupJugador(1) == 0;
 			const ReglesDosJugadors::Resultat resultat = partidaDosJugadors.finalitzaTir();
 			m_avisEsFalta = resultat == ReglesDosJugadors::Resultat::Falta;
 			m_tempsAvisPartida = 3.3f;
@@ -4867,7 +4956,7 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			case ReglesDosJugadors::MotiuFalta::SenseBanda: m_avisPartida = L"FALTA: SENSE BANDA - 2 TIRS"; break;
 			default: m_avisPartida = L"FALTA: 2 TIRS AL RIVAL"; break;
 			}
-			RecolocaBolaBlancaBillar();
+			if (partidaDosJugadors.blancaEnMa()) RecolocaBolaBlancaBillar();
 			}
 			else if (resultat == ReglesDosJugadors::Resultat::CanviTorn)
 				m_avisPartida = L"TORN DEL JUGADOR " + std::to_wstring(partidaDosJugadors.jugadorActual());
@@ -4878,7 +4967,10 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			else if (resultat == ReglesDosJugadors::Resultat::Derrota)
 				m_avisPartida = L"NEGRA INCORRECTA: DERROTA";
 			else m_avisPartida.clear();
-			if (resultat == ReglesDosJugadors::Resultat::RepetirTrencada)
+			if (modeJocActual == MODE_CLASSIC && grupPendent && partidaDosJugadors.grupJugador(1) != 0)
+                m_avisPartida = partidaDosJugadors.grupJugador(1) == 2 ?
+                    L"J1: RATLLADES | J2: LLISES" : L"J1: LLISES | J2: RATLLADES";
+            if (resultat == ReglesDosJugadors::Resultat::RepetirTrencada)
 			{
 				ReiniciaBolesBillar();
 				MostraEstatPartida(_T("Negra a la trencada: repetim"));
@@ -5535,7 +5627,8 @@ void CEntornVGIView::OnVistaFullScreen()
 	}
 
 	// Crida a OnPaint() per redibuixar l'escena
-	InvalidateRect(NULL, false);
+	SetFocus();
+    InvalidateRect(NULL, false);
 }
 
 void CEntornVGIView::OnUpdateVistaFullScreen(CCmdUI* pCmdUI)
@@ -7677,6 +7770,7 @@ void CEntornVGIView::OnObjecteBillar()
 
 	Set_VAOList(GLUT_CUBE, loadglutSolidCube_EBO(1.0));
 	Set_VAOList(GLU_SPHERE, loadgluSphere_EBO(0.2, 30, 30));
+    Set_VAOList(GLUT_CYLINDER, loadgluCylinder_EBO(1.0f, 1.0f, 1.0f, 32, 1));
 
 	// --- CÀRREGA DE TEXTURES DE LES BOLES ---
 	// Carreguem les 16 textures des de la carpeta textures/ utilitzant loadIMA_SOIL
@@ -7702,7 +7796,10 @@ void CEntornVGIView::OnObjecteBillar()
 		COBJModel* modelBlender = new COBJModel;
 		char rutaTaula[] = ".\\objectes\\mesa_billar.obj";
 		if (modelBlender->LoadModel(rutaTaula) == 0)
-			ObTaulaBillar = modelBlender;
+        {
+            ObTaulaBillar = modelBlender;
+            OutputDebugStringA("VGI: model Blender carregat correctament.\n");
+        }
 		else
 		{
 			delete modelBlender;
@@ -7794,6 +7891,7 @@ void CEntornVGIView::ContinuaPartida()
 
 void CEntornVGIView::TornaAlMenu()
 {
+    m_carregantEspai = false; espaiClassicBloquejat = true;
     passeigEscacs=false; modeJocActual=MODE_CLASSIC; m_menu.ModeEscacs(false);
 	carregantTir = false;
 	m_arrossegantBlanca = false;

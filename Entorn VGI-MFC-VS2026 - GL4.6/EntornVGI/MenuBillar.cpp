@@ -579,7 +579,7 @@ const wchar_t* linies[] = {
 		L"FALTA: no toques cap bola -> el rival te DOS TIRS.",
 		L"FALTA: primer contacte incorrecte -> DOS TIRS.",
 		L"FALTA: ni embocada ni banda posterior -> DOS TIRS.",
-		L"Despres de falta: blanca a la linia amb ratoli o I/K.",
+		L"Si embocues la blanca: recol.locacio a la linia (ratoli o I/K).",
 		L"Negra prematura o amb falta: partida perduda."
 	};
 	for (int i = 0; i < 9; ++i)
@@ -633,9 +633,9 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 		DibuixaText(info.escacs ? (j == 1 ? L"IVORI" : L"OBSIDIANA") : (j == 1 ? L"JUGADOR 1" : L"JUGADOR 2"), r.x + 20.0f * s, r.y + 23.0f * s, Px(20.0f, s), true, COLOR_BLANC, 0);
 		const int grup = j == 1 ? info.grup1 : info.grup2;
 		const int restants = j == 1 ? info.restants1 : info.restants2;
-		const wchar_t* grupText = grup == 1 ? L"LLISES" : grup == 2 ? L"RATLLADES" : L"SENSE ASSIGNAR";
+		const wchar_t* grupText = grup == 1 ? L"LLISES" : grup == 2 ? L"RATLLADES" : (j==1 ? L"LLISES (PENDENT)" : L"RATLLADES (PENDENT)");
 		DibuixaText(info.escacs ? L"CHESS BILLIARDS" : grupText, r.x + 20.0f * s, r.y + 52.0f * s, Px(16.0f, s), false, COLOR_GRIS, 0);
-		DibuixaText(info.escacs ? std::to_wstring(j == 1 ? info.punts1 : info.punts2) + L" PTS" : std::to_wstring(restants) + L" / 7", r.x + r.w - 20.0f * s, r.y + 37.0f * s, Px(25.0f, s), true, act ? COLOR_DAURAT : COLOR_BLANC, 2);
+		DibuixaText(info.escacs ? std::to_wstring(j == 1 ? info.punts1 : info.punts2) + L" PTS" : (grup == 0 ? std::wstring(L"--") : std::to_wstring(restants) + L" / 7"), r.x + r.w - 20.0f * s, r.y + 37.0f * s, Px(25.0f, s), true, act ? COLOR_DAURAT : COLOR_BLANC, 2);
 		const float colors[7][4] = {
 			{ 0.95f, 0.75f, 0.12f, 1.0f }, { 0.12f, 0.40f, 0.83f, 1.0f },
 			{ 0.84f, 0.16f, 0.16f, 1.0f }, { 0.45f, 0.23f, 0.68f, 1.0f },
@@ -643,14 +643,40 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 			{ 0.53f, 0.18f, 0.15f, 1.0f }
 		};
 		const float apagada[4] = { 0.25f, 0.30f, 0.27f, 0.75f };
-		const int primer = grup == 2 || (grup == 0 && j == 2) ? 9 : 1;
+		// Abans d'assignar grups mostrem els dos conjunts, sense assignar-los.
+        const int grupMostrat = grup == 0 ? j : grup;
+        const int primer = grupMostrat == 2 ? 9 : 1;
 		for (int i = 0; i < 7; ++i)
 		{
 			const int bola = primer + i;
 			const Rect cercle{ r.x + (20.0f + i * 30.0f) * s, r.y + 73.0f * s, 22.0f * s, 22.0f * s };
-			RectArrodonit(cercle, info.embocades[bola] ? apagada : (info.escacs ? (j==1 ? COLOR_BLANC : COLOR_PANELL) : colors[i]), COLOR_DAURAT, 11.0f * s, 1.0f * s);
-			DibuixaText(std::to_wstring(bola), cercle.x + cercle.w * 0.5f, cercle.y + cercle.h * 0.5f,
-				Px(13.0f, s), true, info.embocades[bola] ? COLOR_GRIS : COLOR_BLANC, 1);
+			const bool embocada = info.embocades[bola];
+            if (info.escacs)
+            {
+                RectArrodonit(cercle, embocada ? apagada : (j==1 ? COLOR_BLANC : COLOR_PANELL), COLOR_DAURAT, 11.0f*s, 1.0f*s);
+                DibuixaText(std::to_wstring(bola), cercle.x+cercle.w*0.5f, cercle.y+cercle.h*0.5f, Px(13.0f,s), true, embocada ? COLOR_GRIS : COLOR_BLANC, 1);
+            }
+            else
+            {
+                const bool ratllada = grupMostrat == 2;
+                const float blancBola[4] = {0.95f,0.94f,0.88f,1.0f};
+                const float tinta[4] = {0.07f,0.08f,0.07f,1.0f};
+                RectArrodonit(cercle, ratllada ? blancBola : colors[i], embocada ? COLOR_DAURAT : voraFosca, 11.0f*s, 1.0f*s);
+                if (ratllada)
+                {
+                    const Rect franja{cercle.x+1.5f*s,cercle.y+6.0f*s,cercle.w-3.0f*s,10.0f*s};
+                    RectArrodonit(franja, colors[i], colors[i], 4.0f*s, 0.0f);
+                }
+                const Rect num{cercle.x+5.0f*s,cercle.y+5.0f*s,12.0f*s,12.0f*s};
+                RectArrodonit(num, blancBola, blancBola, 6.0f*s, 0.0f);
+                DibuixaText(std::to_wstring(bola), cercle.x+cercle.w*0.5f, cercle.y+cercle.h*0.5f, Px(10.0f,s), true, tinta, 1);
+                if (embocada)
+                {
+                    // Marca sota la bola: conserva numero, color i franja.
+                    const float fet[4] = {0.35f,0.95f,0.57f,1.0f};
+                    Pla(cercle.x+3.0f*s,cercle.y+cercle.h+3.0f*s,16.0f*s,3.0f*s,fet);
+                }
+            }
 		}
 	}
 	if (!info.missatge.empty())
@@ -670,7 +696,16 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 	const float xBarra = peu.x + 100.0f * s;
 	const float fraccio = (std::max)(0.0f, (std::min)(1.0f, info.forca));
 	Pla(xBarra, yPeu + 14.0f * s, ampladaBarra, 12.0f * s, voraFosca);
-	Pla(xBarra, yPeu + 14.0f * s, ampladaBarra * fraccio, 12.0f * s, COLOR_DAURAT);
+	// Degradat verd -> groc -> taronja -> vermell, fins a la forca actual.
+    for (int k = 0; k < 40; ++k)
+    {
+        const float t = k / 40.0f;
+        const float tram = (std::min)(1.0f/40.0f, fraccio-t);
+        if (tram <= 0.0f) break;
+        const float color[4] = { (std::min)(1.0f, 0.12f+2.0f*t),
+            t < 0.5f ? 0.78f+0.40f*t : 1.0f-1.80f*(t-0.5f), 0.09f, 1.0f };
+        Pla(xBarra+ampladaBarra*t, yPeu+14.0f*s, ampladaBarra*tram, 12.0f*s, color);
+    }
 	DibuixaText(info.superior ? L"CÀMERA SUPERIOR" : L"CÀMERA DE TIR", peu.x + peu.w * 0.61f, yPeu + 21.0f * s, Px(15.0f, s), false, COLOR_BLANC, 0);
 	const int minuts = info.segons / 60;
 	const int segons = info.segons % 60;
@@ -678,8 +713,8 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 	swprintf_s(temps, 32, L"%02d:%02d", minuts, segons);
 	DibuixaText(temps, peu.x + peu.w - 22.0f * s, yPeu + 22.0f * s, Px(19.0f, s), true, COLOR_DAURAT, 2);
 	const wchar_t* indicacio = info.tirsDisponibles > 1 ?
-		(info.blancaEnMa ? L"FALTA: 2 TIRS. MOU LA BLANCA A LA LINIA" : L"TENS 2 TIRS") :
-		(info.blancaEnMa ? L"BLANCA EN MA: ARROSSEGA SOBRE LA LINIA (I/K)" : L"ESC: PAUSA  ·  R: REINICIAR");
+		(info.blancaEnMa ? L"FALTA: 2 TIRS. MOU LA BLANCA A LA LINIA" : L"TENS 2 TIRS - BLANCA ON HA QUEDAT") :
+		(info.blancaEnMa ? L"BLANCA EN MA: ARROSSEGA SOBRE LA LINIA (I/K)" : L"ESPAI: CARREGA I DEIXA ANAR PER TIRAR | ESC: PAUSA");
 	DibuixaText(info.exploracio ? L"WASD: CAMINAR | FLETXES: GIRAR | C: SORTIR" : (info.escacs ? L"C: EXPLORAR SALA | ESC: PAUSA" : indicacio), peu.x + 19.0f*s, yPeu + 43.0f*s, Px(13.0f,s), false, COLOR_GRIS, 0);
     const Rect pausa{d.w-132.0f*s,16.0f*s,116.0f*s,42.0f*s};
     RectArrodonit(pausa,COLOR_PANELL,COLOR_DAURAT,8.0f*s,1.5f*s);
