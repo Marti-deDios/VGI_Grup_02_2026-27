@@ -22,7 +22,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
 	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
 	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
-	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca);
+	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ);
 
 // Dibuixa Eixos Coordenades M?n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -80,6 +80,284 @@ void dibuixa_Skybox(GLuint sk_programID, GLuint cmTexture, char eix_Polar, glm::
 
 
 // dibuixa_EscenaGL: Dibuix de l'escena amb comandes GL
+// VGI_AULA_UAB_V2: laboratori immersiu de la UAB. 4 parets i sostre fora de la camera superior.
+// Només afecta la geometria del decorat: la taula Blender, la fisica i el HUD son independents.
+static GLuint UAB_CarregaTextura(const char* fitxer)
+{
+    return static_cast<GLuint>(loadIMA_SOIL(fitxer));
+}
+
+static void UAB_Cub(GLuint sh, const glm::mat4& base,
+    const glm::vec3& pos, const glm::vec3& mida,
+    float r, float g, float b, bool llum = false)
+{
+    CColor color = { r, g, b, 1.0f };
+    bool material[5] = { llum, true, !llum, false, true };
+    SeleccionaColorMaterial(sh, color, material);
+    glUniform1i(glGetUniformLocation(sh, "textur"), GL_FALSE);
+    glUniform1i(glGetUniformLocation(sh, "modulate"), GL_TRUE);
+    glm::mat4 model = glm::scale(glm::translate(base, pos), mida);
+    glUniformMatrix4fv(glGetUniformLocation(sh, "modelMatrix"), 1, GL_FALSE, &model[0][0]);
+    draw_TriEBO_Object(GLUT_CUBE);
+}
+
+// Plano 3D amb UV explicites. Invertim nomes V: l'OBJ/OpenGL rebia la imatge
+// amb l'origen vertical oposat; aixo feia que 'VGI' es llegis cap per avall.
+static void UAB_Panell(GLuint sh, const glm::mat4& base, GLuint textura,
+    const glm::vec3& origen, const glm::vec3& amplada, const glm::vec3& alcada)
+{
+    if (textura == 0) return;
+    const glm::vec3 punts[6] = {
+        origen, origen + amplada, origen + amplada + alcada,
+        origen, origen + amplada + alcada, origen + alcada
+    };
+    const float uv[6][2] = {
+        {0.0f,0.0f}, {1.0f,0.0f}, {1.0f,1.0f},
+        {0.0f,0.0f}, {1.0f,1.0f}, {0.0f,1.0f}
+    };
+    const glm::vec3 normal = glm::normalize(glm::cross(amplada, alcada));
+    GLfloat vertices[6 * 12] = {};
+    for (int i = 0; i < 6; ++i)
+    {
+        const int k = i * 12;
+        vertices[k] = punts[i].x;
+        vertices[k+1] = punts[i].y;
+        vertices[k+2] = punts[i].z;
+        vertices[k+3] = 1.0f;
+        vertices[k+4] = 1.0f;
+        vertices[k+5] = 1.0f;
+        vertices[k+6] = 1.0f;
+        vertices[k+7] = normal.x;
+        vertices[k+8] = normal.y;
+        vertices[k+9] = normal.z;
+        vertices[k+10] = uv[i][0];
+        vertices[k+11] = 1.0f - uv[i][1];
+    }
+    static GLuint vao = 0, vbo = 0;
+    if (vao == 0)
+    {
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        const GLsizei stride = static_cast<GLsizei>(12 * sizeof(GLfloat));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(0));
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(3 * sizeof(GLfloat)));
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(7 * sizeof(GLfloat)));
+        glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(10 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        glEnableVertexAttribArray(3);
+    }
+    else
+    {
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    }
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    CColor blanc = { 1.0f, 1.0f, 1.0f, 1.0f };
+    bool material[5] = { false, true, true, false, true };
+    SeleccionaColorMaterial(sh, blanc, material);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textura);
+    glUniform1i(glGetUniformLocation(sh, "texture0"), 0);
+    glUniform1i(glGetUniformLocation(sh, "textur"), GL_TRUE);
+    glUniform1i(glGetUniformLocation(sh, "modulate"), GL_FALSE);
+    glUniform1i(glGetUniformLocation(sh, "flag_invert_y"), GL_FALSE);
+    glUniformMatrix4fv(glGetUniformLocation(sh, "modelMatrix"), 1, GL_FALSE, &base[0][0]);
+    const GLboolean culling = glIsEnabled(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    if (culling) glEnable(GL_CULL_FACE);
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUniform1i(glGetUniformLocation(sh, "textur"), GL_FALSE);
+    glUniform1i(glGetUniformLocation(sh, "modulate"), GL_TRUE);
+}
+
+// Estacio amb monitor realista: marc, pantalla amb editor de codi 3D, suport,
+// teclat tecla a tecla, portatil, sobre de noguera i cadira amb base de cinc radis.
+static void UAB_Estacio(GLuint sh, const glm::mat4& base,
+    GLuint monitor, GLuint fusta, float x, float y, float costat)
+{
+    const float s = costat;
+    const float aluR = 0.30f, aluG = 0.37f, aluB = 0.40f;
+    UAB_Cub(sh, base, glm::vec3(x,y,-1.32f), glm::vec3(1.85f,0.99f,0.12f), 0.35f,0.25f,0.19f);
+    UAB_Panell(sh, base, fusta, glm::vec3(x-0.91f,y-0.475f,-1.255f),
+        glm::vec3(1.82f,0.0f,0.0f),glm::vec3(0.0f,0.95f,0.0f));
+    for (int ix=-1; ix<=1; ix+=2)
+        for (int iy=-1; iy<=1; iy+=2)
+            UAB_Cub(sh,base,glm::vec3(x+ix*0.77f,y+iy*0.35f,-1.86f),
+                glm::vec3(0.085f,0.085f,1.13f),aluR,aluG,aluB);
+    // Computer: panell prim amb base i bisell real; pantalla cap a la taula.
+    UAB_Cub(sh,base,glm::vec3(x,y+s*0.15f,-0.79f),
+        glm::vec3(1.20f,0.075f,0.77f),0.08f,0.11f,0.14f);
+    UAB_Cub(sh,base,glm::vec3(x,y+s*0.10f,-0.79f),
+        glm::vec3(1.13f,0.012f,0.71f),0.19f,0.23f,0.27f);
+    if (s > 0.0f)
+        UAB_Panell(sh,base,monitor,glm::vec3(x-0.55f,y+s*0.088f,-1.125f),
+            glm::vec3(1.10f,0,0),glm::vec3(0,0,0.665f));
+    else
+        UAB_Panell(sh,base,monitor,glm::vec3(x+0.55f,y+s*0.088f,-1.125f),
+            glm::vec3(-1.10f,0,0),glm::vec3(0,0,0.665f));
+    UAB_Cub(sh,base,glm::vec3(x,y+s*0.19f,-1.20f),
+        glm::vec3(0.075f,0.12f,0.20f),aluR,aluG,aluB);
+    UAB_Cub(sh,base,glm::vec3(x,y+s*0.19f,-1.24f),
+        glm::vec3(0.36f,0.26f,0.03f),aluR,aluG,aluB);
+    UAB_Cub(sh,base,glm::vec3(x,y-s*0.27f,-1.224f),
+        glm::vec3(0.97f,0.35f,0.035f),0.10f,0.13f,0.15f);
+    for (int row=0;row<3;++row)
+        for(int key=0;key<12;++key)
+            UAB_Cub(sh,base,
+                glm::vec3(x-0.42f+key*0.076f,y-s*(0.39f-row*0.100f),-1.199f),
+                glm::vec3(0.056f,0.061f,0.013f),0.32f,0.36f,0.38f);
+    UAB_Cub(sh,base,glm::vec3(x+0.72f,y-s*0.23f,-1.206f),
+        glm::vec3(0.12f,0.19f,0.027f),0.14f,0.17f,0.19f);
+    // Cadira d'oficina amb seient, respatller i estructura fina.
+    const float cy = y-s*1.20f;
+    UAB_Cub(sh,base,glm::vec3(x,cy,-1.79f),
+        glm::vec3(0.66f,0.68f,0.135f),0.18f,0.25f,0.31f);
+    UAB_Cub(sh,base,glm::vec3(x,cy-s*0.34f,-1.35f),
+        glm::vec3(0.69f,0.12f,0.84f),0.21f,0.29f,0.34f);
+    UAB_Cub(sh,base,glm::vec3(x,cy,-2.08f),
+        glm::vec3(0.075f,0.075f,0.57f),aluR,aluG,aluB);
+    for (int j=-2;j<=2;++j)
+    {
+        const bool vertical = (j%2==0);
+        UAB_Cub(sh,base,glm::vec3(x+j*0.14f,cy+(j%2)*0.17f,-2.39f),
+            glm::vec3(vertical?0.33f:0.20f,vertical?0.055f:0.24f,0.045f),aluR,aluG,aluB);
+    }
+    for (int ix=-1;ix<=1;ix+=2)
+        UAB_Cub(sh,base,glm::vec3(x+ix*0.36f,cy,-1.60f),
+            glm::vec3(0.060f,0.55f,0.045f),aluR,aluG,aluB);
+}
+
+static void UAB_Planta(GLuint sh, const glm::mat4& base, float x, float y)
+{
+    UAB_Cub(sh,base,glm::vec3(x,y,-2.21f),glm::vec3(0.51f,0.51f,0.60f),0.34f,0.31f,0.25f);
+    UAB_Cub(sh,base,glm::vec3(x,y,-1.43f),glm::vec3(0.08f,0.08f,1.12f),0.27f,0.39f,0.24f);
+    for (int j=-2;j<=2;++j)
+    {
+        UAB_Cub(sh,base,glm::vec3(x+j*0.25f,y-0.20f,-0.79f+j*0.06f),
+            glm::vec3(0.44f,0.14f,0.08f),0.19f,0.47f,0.31f);
+        UAB_Cub(sh,base,glm::vec3(x+j*0.19f,y+0.18f,-0.69f+j*0.08f),
+            glm::vec3(0.31f,0.15f,0.06f),0.23f,0.53f,0.34f);
+    }
+}
+
+static void DibuixaAulaUAB(GLuint sh, const glm::mat4& base)
+{
+    static GLuint paviment=0, vidre=0, pissarra=0, placa=0, fusta=0, monitor=0, sostre=0;
+    if(!paviment) paviment=UAB_CarregaTextura("textures/uab_v2_terra.jpg");
+    if(!vidre) vidre=UAB_CarregaTextura("textures/uab_v2_vidriera.jpg");
+    if(!pissarra) pissarra=UAB_CarregaTextura("textures/uab_aula_pissarra.png");
+    if(!placa) placa=UAB_CarregaTextura("textures/uab_aula_placa.png");
+    if(!fusta) fusta=UAB_CarregaTextura("textures/uab_v2_noguera.jpg");
+    if(!monitor) monitor=UAB_CarregaTextura("textures/uab_v2_monitor.jpg");
+    if(!sostre) sostre=UAB_CarregaTextura("textures/uab_v2_sostre.jpg");
+
+    // Paviment realista fins a cada paret. Es veu sencer a la vista superior.
+    UAB_Cub(sh,base,glm::vec3(0.0f,0.0f,-2.82f),
+        glm::vec3(49.0f,38.0f,0.60f),0.28f,0.33f,0.35f);
+    UAB_Panell(sh,base,paviment,glm::vec3(-24.0f,-18.5f,-2.515f),
+        glm::vec3(48.0f,0.0f,0.0f),glm::vec3(0.0f,37.0f,0.0f));
+
+    // Quatre murs 3D complets. El sostre (z=23) queda molt per sobre
+    // de la camera superior del projecte (z=14), sense amagar les boles.
+    for (int k=-1;k<=1;k+=2)
+    {
+        const float s=static_cast<float>(k);
+        UAB_Cub(sh,base,glm::vec3(0.0f,s*18.20f,10.0f),
+            glm::vec3(48.0f,0.35f,25.0f),0.35f,0.40f,0.42f);
+        const glm::vec3 orig=s>0 ? glm::vec3(-21.0f,17.99f,-0.90f):glm::vec3(21.0f,-17.99f,-0.90f);
+        UAB_Panell(sh,base,vidre,orig,
+            glm::vec3(s*42.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,8.10f));
+        // Estructura de vidre: muntants negres i travessers metal.lics.
+        for (int j=-6;j<=6;++j)
+            UAB_Cub(sh,base,glm::vec3(j*3.27f,s*17.91f,2.95f),
+                glm::vec3(0.10f,0.12f,8.45f),0.13f,0.20f,0.23f);
+        for(int j=0;j<3;++j)
+            UAB_Cub(sh,base,glm::vec3(0.0f,s*17.90f,0.05f+j*3.10f),
+                glm::vec3(42.0f,0.12f,0.12f),0.13f,0.20f,0.23f);
+        UAB_Cub(sh,base,glm::vec3(0.0f,s*17.85f,8.10f),
+            glm::vec3(42.0f,0.07f,0.075f),0.29f,0.84f,0.83f,true);
+        // Franges d'absorcio acustica a la part alta, amb llum indirecta.
+        for (int j=-3;j<=3;++j)
+            UAB_Cub(sh,base,glm::vec3(j*6.0f,s*17.85f,14.0f),
+                glm::vec3(4.75f,0.075f,2.45f),0.20f,0.27f,0.30f);
+    }
+
+    for (int k=-1;k<=1;k+=2)
+    {
+        const float s=static_cast<float>(k);
+        const float x=s>0?24.0f:-24.0f;
+        UAB_Cub(sh,base,glm::vec3(x,0.0f,10.0f),
+            glm::vec3(0.40f,36.5f,25.0f),0.35f,0.40f,0.42f);
+        const glm::vec3 orig=s>0 ? glm::vec3(23.76f,15.5f,-0.95f)
+                                   :glm::vec3(-23.76f,-15.5f,-0.95f);
+        UAB_Panell(sh,base,vidre,orig,
+            glm::vec3(0.0f,s*-31.0f,0.0f),glm::vec3(0.0f,0.0f,8.25f));
+        for (int j=-4;j<=4;++j)
+            UAB_Cub(sh,base,glm::vec3(x-s*0.25f,j*3.55f,3.03f),
+                glm::vec3(0.12f,0.11f,8.50f),0.13f,0.20f,0.23f);
+        UAB_Cub(sh,base,glm::vec3(x-s*0.28f,0.0f,8.20f),
+            glm::vec3(0.055f,31.0f,0.055f),0.75f,0.63f,0.37f,true);
+    }
+
+    // Sostre alt: dona continuïtat al fons de qualsevol costat,
+    // sense ocultar les boles a la vista superior (14 unitats d'altura).
+    UAB_Cub(sh,base,glm::vec3(0.0f,0.0f,22.80f),
+        glm::vec3(48.0f,36.3f,0.24f),0.24f,0.28f,0.28f);
+    UAB_Panell(sh,base,sostre,glm::vec3(-23.9f,-18.0f,22.67f),
+        glm::vec3(47.8f,0.0f,0.0f),glm::vec3(0.0f,36.0f,0.0f));
+    for(int i=-3;i<=3;++i)
+    {
+        UAB_Cub(sh,base,glm::vec3(i*6.0f,0.0f,22.53f),
+            glm::vec3(0.13f,33.0f,0.10f),0.21f,0.27f,0.30f);
+        UAB_Cub(sh,base,glm::vec3(i*6.0f,0.0f,22.45f),
+            glm::vec3(0.045f,31.0f,0.045f),0.95f,0.77f,0.49f,true);
+    }
+
+    // Pissarra digital UAB-VGI en un marc real, davant del mur del fons.
+    UAB_Cub(sh,base,glm::vec3(14.15f,0.0f,1.73f),
+        glm::vec3(0.21f,12.0f,6.10f),0.13f,0.19f,0.23f);
+    UAB_Cub(sh,base,glm::vec3(14.01f,0.0f,1.73f),
+        glm::vec3(0.10f,11.64f,5.75f),0.02f,0.07f,0.09f);
+    // El panell te l'orientacio correcta cap a la camera de tir (-X).
+    // L'UV V es capgira a UAB_Panell per corregir les lletres invertides.
+    UAB_Panell(sh,base,pissarra,glm::vec3(13.951f,5.65f,-1.10f),
+        glm::vec3(0.0f,-11.30f,0.0f),glm::vec3(0.0f,0.0f,5.66f));
+    UAB_Cub(sh,base,glm::vec3(13.89f,5.87f,1.73f),
+        glm::vec3(0.08f,0.065f,6.25f),0.30f,0.85f,0.77f,true);
+    UAB_Cub(sh,base,glm::vec3(13.89f,-5.87f,1.73f),
+        glm::vec3(0.08f,0.065f,6.25f),0.30f,0.85f,0.77f,true);
+
+    // Quatre estacions laterals detallades; no envaeixen les bandes.
+    for (int costat=-1;costat<=1;costat+=2)
+    {
+        const float s=static_cast<float>(costat);
+        UAB_Estacio(sh,base,monitor,fusta,-5.5f,s*9.20f,s);
+        UAB_Estacio(sh,base,monitor,fusta,5.5f,s*9.20f,s);
+        UAB_Planta(sh,base,11.6f,s*13.50f);
+        UAB_Cub(sh,base,glm::vec3(0.0f,s*6.75f,-2.44f),
+            glm::vec3(23.0f,0.055f,0.04f),0.92f,0.71f,0.40f,true);
+    }
+    // Placa UAB sobre el terra, visible quan la camera es superior.
+    UAB_Panell(sh,base,placa,glm::vec3(-12.0f,-7.4f,-2.495f),
+        glm::vec3(5.70f,0.0f,0.0f),glm::vec3(0.0f,2.10f,0.0f));
+
+    // L'estat OpenGL del decorat no pot canviar els colors Blender.
+    glBindTexture(GL_TEXTURE_2D,0);
+    glUniform1i(glGetUniformLocation(sh,"textur"),GL_FALSE);
+    glUniform1i(glGetUniformLocation(sh,"modulate"),GL_TRUE);
+    glUniform1i(glGetUniformLocation(sh,"flag_invert_y"),GL_FALSE);
+    CColor blancModel={1.0f,1.0f,1.0f,1.0f};
+    bool materialModel[5]={false,true,true,true,true};
+    SeleccionaColorMaterial(sh,blancModel,materialModel);
+}
+
 void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa, char objecte,
 	CColor col_object, bool sw_mat[5],
 	bool textur, GLuint texturID[NUM_MAX_TEXTURES], bool textur_map, bool flagInvertY,
@@ -88,7 +366,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -391,7 +669,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles,
 			posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca,
 			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives,
-			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca);
+			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca, taulaOBJ);
 		break;
 	}
 
@@ -404,7 +682,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ)
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -425,6 +703,22 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		// Billar
 	case BILLAR:
 	{
+		DibuixaAulaUAB(sh_programID, MatriuTG);
+		// Restablim l'estat del shader despres del decorat lluminos.
+		CColor blancModel = { 1.0f, 1.0f, 1.0f, 1.0f };
+		bool materialModel[5] = { false, true, true, true, true };
+		SeleccionaColorMaterial(sh_programID, blancModel, materialModel);
+		glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_FALSE);
+		glUniform1i(glGetUniformLocation(sh_programID, "texturaActiva"), 0);
+		if (taulaOBJ != nullptr)
+		{
+			glUniform1i(glGetUniformLocation(sh_programID, "textur"), GL_FALSE);
+			glUniform1i(glGetUniformLocation(sh_programID, "texturaActiva"), 0);
+			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &MatriuTG[0][0]);
+			taulaOBJ->draw_TriVAO_OBJ(sh_programID);
+		}
+		else
+		{
 		// 1. Dibuixar el tapete de la mesa de billar (SENSE textura)
 		CColor verd;
 		verd.r = 0.0f; verd.g = 0.6f; verd.b = 0.15f; verd.a = 1.0f;
@@ -615,6 +909,8 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			draw_TriEBO_Object(GLUT_CUBE);
 		}
 
+		}
+
 		bool materialBola[5] = { false, true, true, true, true };
 		float escalaBola = 0.55f;
 		float alturaTapetZ = 0.25f;
@@ -694,7 +990,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			colorLinia.a = 1.0f;
 			SeleccionaColorMaterial(sh_programID, colorLinia, materialBola);
 			glm::mat4 marca = glm::translate(MatriuTG, vec3(-3.0f, 0.0f, 0.151f));
-			marca = glm::scale(marca, vec3(0.025f, 4.25f, 0.007f));
+			marca = glm::scale(marca, vec3(0.025f, taulaOBJ != nullptr ? 4.00f : 4.25f, 0.007f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &marca[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 		}

@@ -173,6 +173,7 @@ public:
 
 	// Entorn VGI: Objecte OBJ:
 	COBJModel* ObOBJ;		// Variable d'objecte format OBJ (*.OBJ)
+	COBJModel* ObTaulaBillar = nullptr;
 	CVAO vao_OBJ;			// Identificador VAO per a objecte OBJ
 
 	// Entorn VGI: OBJECTE --> Corbes Bezier, BSpline, Catmull-Rom i Loxodroma

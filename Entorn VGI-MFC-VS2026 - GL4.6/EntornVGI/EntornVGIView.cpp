@@ -978,6 +978,8 @@ void CEntornVGIView::OnDestroy()
 	{
 		wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
 		m_menu.Allibera();
+		delete ObTaulaBillar;
+		ObTaulaBillar = nullptr;
 		wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
 	}
 
@@ -1363,7 +1365,7 @@ void CEntornVGIView::dibuixa_Escena()
 		angleTac, desplacamentTac,
 		(!MenuActiu() || m_pausa) && bolaBlancaActiva && (BolesAturadesBillar() || animantTir),
 		enfonsamentTronera,
-		!MenuActiu() && partidaDosJugadors.blancaEnMa());
+		!MenuActiu() && partidaDosJugadors.blancaEnMa(), ObTaulaBillar);
 }
 
 
@@ -4302,12 +4304,20 @@ void CEntornVGIView::RecolocaBolaBlancaBillar()
 
 bool CEntornVGIView::PotMoureBlanca(float x, float y) const
 {
-	if (x < -4.70f || x > 4.70f || y < -2.20f || y > 2.20f)
+	if (x < (ObTaulaBillar != nullptr ? -4.20f : -4.70f) ||
+		x > (ObTaulaBillar != nullptr ? 4.20f : 4.70f) ||
+		y < (ObTaulaBillar != nullptr ? -2.04f : -2.20f) ||
+		y > (ObTaulaBillar != nullptr ? 2.04f : 2.20f))
 		return false;
 	const glm::vec2 candidat(x, y);
+	const bool blender = ObTaulaBillar != nullptr;
 	const glm::vec2 forats[6] = {
-		glm::vec2(-4.72f, 2.22f), glm::vec2(0.0f, 2.34f), glm::vec2(4.72f, 2.22f),
-		glm::vec2(-4.72f, -2.22f), glm::vec2(0.0f, -2.34f), glm::vec2(4.72f, -2.22f)
+		glm::vec2(blender ? -4.312f : -4.72f, blender ? 2.156f : 2.22f),
+		glm::vec2(0.0f, blender ? 2.252f : 2.34f),
+		glm::vec2(blender ? 4.312f : 4.72f, blender ? 2.156f : 2.22f),
+		glm::vec2(blender ? -4.312f : -4.72f, blender ? -2.156f : -2.22f),
+		glm::vec2(0.0f, blender ? -2.252f : -2.34f),
+		glm::vec2(blender ? 4.312f : 4.72f, blender ? -2.156f : -2.22f)
 	};
 	for (const auto& forat : forats)
 		if (glm::length(candidat - forat) < 0.40f) return false;
@@ -4362,8 +4372,8 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 	const float diametre = 2.0f * radi;
 
 	// Limits interiors dels coixins: x = +/-4.84 i y = +/-2.34.
-	const float limitX = 4.84f - radi;
-	const float limitY = 2.34f - radi;
+	const float limitX = (ObTaulaBillar != nullptr ? 4.312f : 4.84f) - radi;
+	const float limitY = (ObTaulaBillar != nullptr ? 2.156f : 2.34f) - radi;
 
 	// Coeficients fisics. El fregament de rodolament s'expressa com a
 	// desacceleracio (unitats de taula/s^2), independent dels FPS.
@@ -4379,10 +4389,15 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 	const float velocitatImpacteMinima = 0.0005f;
 
 	// Centres de les sis troneres del model de l'escena.
-	const glm::vec2 troneres[6] = {
+	const glm::vec2 troneresProcedurals[6] = {
 		glm::vec2(-4.72f,  2.22f), glm::vec2(0.0f,  2.34f), glm::vec2(4.72f,  2.22f),
 		glm::vec2(-4.72f, -2.22f), glm::vec2(0.0f, -2.34f), glm::vec2(4.72f, -2.22f)
 	};
+	const glm::vec2 troneresBlender[6] = {
+		glm::vec2(-4.312f,  2.156f), glm::vec2(0.0f,  2.252f), glm::vec2(4.312f,  2.156f),
+		glm::vec2(-4.312f, -2.156f), glm::vec2(0.0f, -2.252f), glm::vec2(4.312f, -2.156f)
+	};
+	const glm::vec2* troneres = ObTaulaBillar != nullptr ? troneresBlender : troneresProcedurals;
 
 	glm::vec2 posicions[16];
 	glm::vec2 velocitats[16];
@@ -7596,6 +7611,19 @@ void CEntornVGIView::OnObjecteBillar()
 	texturesBoles[13] = loadIMA_SOIL("textures/ball13.png"); // Bola 13
 	texturesBoles[14] = loadIMA_SOIL("textures/ball14.png"); // Bola 14
 	texturesBoles[15] = loadIMA_SOIL("textures/ball15.png"); // Bola 15
+
+	if (ObTaulaBillar == nullptr)
+	{
+		COBJModel* modelBlender = new COBJModel;
+		char rutaTaula[] = ".\\objectes\\mesa_billar.obj";
+		if (modelBlender->LoadModel(rutaTaula) == 0)
+			ObTaulaBillar = modelBlender;
+		else
+		{
+			delete modelBlender;
+			OutputDebugStringA("No sha pogut carregar la taula Blender. Sutilitza la taula original.\\n");
+		}
+	}
 
 	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
 

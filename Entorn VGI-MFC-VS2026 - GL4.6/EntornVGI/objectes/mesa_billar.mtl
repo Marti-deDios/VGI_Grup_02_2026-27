@@ -1,0 +1,137 @@
+# MTL adaptat al carregador d'Entorn VGI (Ka, Kd, Ks, Ns)
+
+newmtl Mat_BlackPocketLiner
+Ka 0.0200 0.0200 0.0220
+Kd 0.0200 0.0200 0.0220
+Ks 0.3000 0.3000 0.3000
+Ns 90.00
+d 1.0
+illum 2
+
+newmtl Mat_BlackPocketLiner.001
+Ka 0.0200 0.0200 0.0220
+Kd 0.0200 0.0200 0.0220
+Ks 0.3000 0.3000 0.3000
+Ns 90.00
+d 1.0
+illum 2
+
+newmtl Mat_BlackPocketLiner.002
+Ka 0.0200 0.0200 0.0220
+Kd 0.0200 0.0200 0.0220
+Ks 0.3000 0.3000 0.3000
+Ns 90.00
+d 1.0
+illum 2
+
+newmtl Mat_BlackPocketLiner.003
+Ka 0.0200 0.0200 0.0220
+Kd 0.0200 0.0200 0.0220
+Ks 0.3000 0.3000 0.3000
+Ns 90.00
+d 1.0
+illum 2
+
+newmtl Mat_BlackPocketLiner.004
+Ka 0.0200 0.0200 0.0220
+Kd 0.0200 0.0200 0.0220
+Ks 0.3000 0.3000 0.3000
+Ns 90.00
+d 1.0
+illum 2
+
+newmtl Mat_ChromeTrim
+Ka 0.3325 0.3325 0.3430
+Kd 0.3325 0.3325 0.3430
+Ks 0.9500 0.9500 0.9800
+Ns 846.40
+d 1.0
+illum 2
+
+newmtl Mat_ChromeTrim.001
+Ka 0.3325 0.3325 0.3430
+Kd 0.3325 0.3325 0.3430
+Ks 0.9500 0.9500 0.9800
+Ns 846.40
+d 1.0
+illum 2
+
+newmtl Mat_ChromeTrim.002
+Ka 0.3325 0.3325 0.3430
+Kd 0.3325 0.3325 0.3430
+Ks 0.9500 0.9500 0.9800
+Ns 846.40
+d 1.0
+illum 2
+
+newmtl Mat_ChromeTrim.003
+Ka 0.3325 0.3325 0.3430
+Kd 0.3325 0.3325 0.3430
+Ks 0.9500 0.9500 0.9800
+Ns 846.40
+d 1.0
+illum 2
+
+newmtl Mat_ChromeTrim.004
+Ka 0.3325 0.3325 0.3430
+Kd 0.3325 0.3325 0.3430
+Ks 0.9500 0.9500 0.9800
+Ns 846.40
+d 1.0
+illum 2
+
+newmtl Mat_DarkWalnut
+Ka 0.0450 0.0200 0.0100
+Kd 0.0450 0.0200 0.0100
+Ks 0.6000 0.6000 0.6000
+Ns 462.40
+d 1.0
+illum 2
+
+newmtl Mat_DiamondSight
+Ka 0.9500 0.9500 0.9200
+Kd 0.9500 0.9500 0.9200
+Ks 0.9000 0.9000 0.9000
+Ns 562.50
+d 1.0
+illum 2
+
+newmtl Mat_SatinCorner.001
+Ka 0.0980 0.1050 0.1120
+Kd 0.0980 0.1050 0.1120
+Ks 0.2800 0.3000 0.3200
+Ns 422.50
+d 1.0
+illum 2
+
+newmtl Mat_SatinCorner.002
+Ka 0.0980 0.1050 0.1120
+Kd 0.0980 0.1050 0.1120
+Ks 0.2800 0.3000 0.3200
+Ns 422.50
+d 1.0
+illum 2
+
+newmtl Mat_SatinCorner.003
+Ka 0.0980 0.1050 0.1120
+Kd 0.0980 0.1050 0.1120
+Ks 0.2800 0.3000 0.3200
+Ns 422.50
+d 1.0
+illum 2
+
+newmtl Mat_SatinCorner.004
+Ka 0.0980 0.1050 0.1120
+Kd 0.0980 0.1050 0.1120
+Ks 0.2800 0.3000 0.3200
+Ns 422.50
+d 1.0
+illum 2
+
+newmtl Mat_TableCloth
+Ka 0.0550 0.4400 0.1600
+Kd 0.0550 0.4400 0.1600
+Ks 0.2000 0.2000 0.2000
+Ns 78.40
+d 1.0
+illum 2

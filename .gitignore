@@ -79,3 +79,5 @@ x86/
 *.ilk
 *.ipch
 "@ | Set-Content .gitignore
+# Model 3D de Blender (no fitxers objecte compilats)
+!Entorn VGI-MFC-VS2026 - GL4.6/EntornVGI/objectes/mesa_billar.obj
