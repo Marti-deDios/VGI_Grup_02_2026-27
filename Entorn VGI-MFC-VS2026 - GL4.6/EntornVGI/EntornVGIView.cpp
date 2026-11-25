@@ -42,6 +42,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 //#include "fractals.h"		// Entorn VGI: FRACTALS. Include funcions fractals
 
+void SoXocBoles();
+void SoCopTac();
+void SoXocBanda();
+void SoBolaForat();
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -4276,6 +4282,7 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	}
 
 	alertaBandaDetectada = false;
+	bool soBandaAquestPas = false;
 	m_carregantEspai = false;
 	m_tempsCarregaEspai = 0.0f;
 	for (int i = 0; i < 16; ++i) m_tempsForat[i] = 0.0f;
@@ -4457,7 +4464,7 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 	}
 
 	alertaBandaDetectada = false;
-
+	bool soBandaAquestPas = false;
 	// 1. Integracio exacta del moviment amb fregament de rodolament constant.
 	// La distancia s'integra fins i tot quan una bola s'atura dins del pas.
 	for (int i = 0; i < 16; ++i)
@@ -4507,6 +4514,7 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 		}
 		if (indexTronera >= 0)
 		{
+			SoBolaForat();
 			m_tempsForat[i] = 0.42f;
 			m_entradaForat[i] = posicions[i];
 			m_centreForat[i] = troneres[indexTronera];
@@ -4526,6 +4534,12 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			posicions[i].x = -limitX;
 			if (velocitats[i].x < 0.0f)
 			{
+				if (!soBandaAquestPas)
+				{
+					SoXocBanda();
+					soBandaAquestPas = true;
+				}
+
 				velocitats[i].x = -velocitats[i].x * restitucioBanda;
 				velocitats[i].y *= fregamentTangencialBanda;
 			}
@@ -4537,6 +4551,12 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			posicions[i].x = limitX;
 			if (velocitats[i].x > 0.0f)
 			{
+				if (!soBandaAquestPas)
+				{
+					SoXocBanda();
+					soBandaAquestPas = true;
+				}
+
 				velocitats[i].x = -velocitats[i].x * restitucioBanda;
 				velocitats[i].y *= fregamentTangencialBanda;
 			}
@@ -4549,6 +4569,12 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			posicions[i].y = -limitY;
 			if (velocitats[i].y < 0.0f)
 			{
+				if (!soBandaAquestPas)
+				{
+					SoXocBanda();
+					soBandaAquestPas = true;
+				}
+
 				velocitats[i].y = -velocitats[i].y * restitucioBanda;
 				velocitats[i].x *= fregamentTangencialBanda;
 			}
@@ -4560,6 +4586,12 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			posicions[i].y = limitY;
 			if (velocitats[i].y > 0.0f)
 			{
+				if (!soBandaAquestPas)
+				{
+					SoXocBanda();
+					soBandaAquestPas = true;
+				}
+
 				velocitats[i].y = -velocitats[i].y * restitucioBanda;
 				velocitats[i].x *= fregamentTangencialBanda;
 			}
@@ -4614,7 +4646,7 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 			contacte.contacteRegistrat = false;
 		}
 	}
-
+	bool soXocBolesAquestPas = false;
 	// 3. Solver de contactes amb impuls acumulat (projected Gauss-Seidel).
 	// Cada passada actualitza l'impuls net de cada parella; nomes s'aplica
 	// la diferencia respecte a l'impuls ja acumulat. Aixi es pot propagar un
@@ -4649,17 +4681,27 @@ void CEntornVGIView::ActualitzaFisicaBillar(float deltaTemps)
 
 			// Nomes comptem una vegada el contacte directe amb la blanca,
 			// quan el solver aplica un impuls positiu a aquesta parella.
-			if (impulsAplicat > 0.0000001f && !contacte.contacteRegistrat)
+			if (impulsAplicat > 0.0000001f)
 			{
-				if (i == 0)
+				if (!soXocBolesAquestPas)
 				{
-					partidaDosJugadors.registraContacte(j);
-					contacte.contacteRegistrat = true;
+					SoXocBoles();
+					soXocBolesAquestPas = true;
 				}
-				else if (j == 0)
+
+				// Nomes comptem una vegada el contacte directe amb la blanca.
+				if (!contacte.contacteRegistrat)
 				{
-					partidaDosJugadors.registraContacte(i);
-					contacte.contacteRegistrat = true;
+					if (i == 0)
+					{
+						partidaDosJugadors.registraContacte(j);
+						contacte.contacteRegistrat = true;
+					}
+					else if (j == 0)
+					{
+						partidaDosJugadors.registraContacte(i);
+						contacte.contacteRegistrat = true;
+					}
 				}
 			}
 		}

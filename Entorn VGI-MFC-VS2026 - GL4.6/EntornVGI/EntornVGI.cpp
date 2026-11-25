@@ -27,6 +27,17 @@ static ma_sound musica;
 static bool audioInicialitzat = false;
 static bool musicaInicialitzada = false;
 
+//variables per gestionar so
+static ma_sound soXocBoles;
+static ma_sound soCopTac;
+static ma_sound soXocBanda;
+static ma_sound soBolaForat;
+
+static bool xocBolesInicialitzat = false;
+static bool copTacInicialitzat = false;
+static bool xocBandaInicialitzat = false;
+static bool bolaForatInicialitzat = false;
+
 // CEntornVGIApp
 
 BEGIN_MESSAGE_MAP(CEntornVGIApp, CWinAppEx)
@@ -104,21 +115,130 @@ void IniciarMusica()
 	// Comencar a reproduir
 	ma_sound_start(&musica);
 }
-
 void AturarMusica()
 {
+	// Alliberem els efectes de so
+	if (xocBolesInicialitzat)
+	{
+		ma_sound_uninit(&soXocBoles);
+		xocBolesInicialitzat = false;
+	}
+
+	if (copTacInicialitzat)
+	{
+		ma_sound_uninit(&soCopTac);
+		copTacInicialitzat = false;
+	}
+
+	if (xocBandaInicialitzat)
+	{
+		ma_sound_uninit(&soXocBanda);
+		xocBandaInicialitzat = false;
+	}
+
+	if (bolaForatInicialitzat)
+	{
+		ma_sound_uninit(&soBolaForat);
+		bolaForatInicialitzat = false;
+	}
+
+	// Alliberem la música
 	if (musicaInicialitzada)
 	{
 		ma_sound_uninit(&musica);
 		musicaInicialitzada = false;
 	}
 
+	// Tanquem el motor d'àudio
 	if (audioInicialitzat)
 	{
 		ma_engine_uninit(&engine);
 		audioInicialitzat = false;
 	}
 }
+
+//EFECTES DE SO
+void IniciarEfectesSo()
+{
+	if (!audioInicialitzat)
+		return;
+
+	if (ma_sound_init_from_file(
+		&engine,
+		"Sons\\xoc_boles.wav",
+		MA_SOUND_FLAG_DECODE,
+		NULL, NULL,
+		&soXocBoles) == MA_SUCCESS)
+	{
+		xocBolesInicialitzat = true;
+	}
+
+	if (ma_sound_init_from_file(
+		&engine,
+		"Sons\\cop_tac.wav",
+		MA_SOUND_FLAG_DECODE,
+		NULL, NULL,
+		&soCopTac) == MA_SUCCESS)
+	{
+		copTacInicialitzat = true;
+	}
+
+	if (ma_sound_init_from_file(
+		&engine,
+		"Sons\\xoc_banda.wav",
+		MA_SOUND_FLAG_DECODE,
+		NULL, NULL,
+		&soXocBanda) == MA_SUCCESS)
+	{
+		xocBandaInicialitzat = true;
+	}
+
+	if (ma_sound_init_from_file(
+		&engine,
+		"Sons\\bola_forat.wav",
+		MA_SOUND_FLAG_DECODE,
+		NULL, NULL,
+		&soBolaForat) == MA_SUCCESS)
+	{
+		bolaForatInicialitzat = true;
+	}
+}
+
+void ReproduirEfecte(ma_sound* so, bool inicialitzat)
+{
+	if (!inicialitzat || so == NULL)
+		return;
+
+	// Aturem la reproducció anterior d'aquest efecte
+	ma_sound_stop(so);
+
+	// Tornem al principi del fitxer
+	ma_sound_seek_to_pcm_frame(so, 0);
+
+	// Reproduïm l'efecte
+	ma_sound_start(so);
+}
+
+void SoXocBoles()
+{
+	ReproduirEfecte(&soXocBoles, xocBolesInicialitzat);
+}
+
+void SoCopTac()
+{
+	ReproduirEfecte(&soCopTac, copTacInicialitzat);
+}
+
+void SoXocBanda()
+{
+	ReproduirEfecte(&soXocBanda, xocBandaInicialitzat);
+}
+
+void SoBolaForat()
+{
+	ReproduirEfecte(&soBolaForat, bolaForatInicialitzat);
+}
+
 
 // Inicialización de CEntornVGIApp
 
@@ -206,6 +326,7 @@ BOOL CEntornVGIApp::InitInstance()
 
 	// Iniciar musica de fons
 	IniciarMusica();
+	IniciarEfectesSo();
 
 	// La ventana principal se ha inicializado; mostrarla y actualizarla
 	pMainFrame->ShowWindow(m_nCmdShow);
