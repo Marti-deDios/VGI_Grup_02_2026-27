@@ -12,11 +12,11 @@
 namespace
 {
 	const wchar_t* const TITOL_JOC = L"BILLAR 3D";
-	const wchar_t* const SUBTITOL_JOC = L"EL REPTE COMENÇA AQUÍ";
-	const wchar_t* const AJUDA_PRINCIPAL = L"2 JUGADORS  ·  8 BOLES  ·  UNA SOLA TAULA";
+	const wchar_t* const SUBTITOL_JOC = L"UNA TAULA. INFINITES POSSIBILITATS.";
+	const wchar_t* const AJUDA_PRINCIPAL = L"F: PANTALLA COMPLETA / FINESTRA";
 
-	const wchar_t* const ETIQUETES_PRINCIPAL[4] = { L"COMENÇAR PARTIDA", L"NORMES DEL JOC", L"CONTROLS I AJUDA", L"CRÈDITS" };
-	const wchar_t* const ETIQUETES_PAUSA[4] = { L"CONTINUAR", L"NORMES DEL JOC", L"REINICIAR PARTIDA", L"TORNAR AL MENÚ" };
+	const wchar_t* const ETIQUETES_PRINCIPAL[5] = { L"MODALITATS", L"NORMES DEL JOC", L"CONTROLS I AJUDA", L"CREDITS", L"SORTIR DEL JOC" };
+	const wchar_t* const ETIQUETES_PAUSA[6] = { L"CONTINUAR", L"NORMES DEL JOC", L"REINICIAR PARTIDA", L"TORNAR A MODALITATS", L"MENU PRINCIPAL", L"SORTIR DEL JOC" };
 	const wchar_t* const ETIQUETES_FINAL[2] = { L"REVENJA", L"MENÚ PRINCIPAL" };
 	const wchar_t* const ETIQUETA_TORNAR = L"TORNAR";
 
@@ -234,14 +234,21 @@ void main()
 /*                         ESTAT I ENTRADA (RATOLI / TECLAT)                 */
 /* ------------------------------------------------------------------------- */
 
+void CMenuBillar::MostraModalitats()
+{
+    MostraPrincipal();
+    m_pantalla = PANT_MODALITATS;
+}
+
 void CMenuBillar::MostraPrincipal()
 {
+    m_normesDesDeModalitats = false;
 	m_normesDesDePausa = false;
 	m_pantalla = PANT_PRINCIPAL;
 	m_seleccio = 0;
 	m_ultimaOpcio = 0;
 	m_premut = -1;
-	m_anim[0] = m_anim[1] = m_anim[2] = m_anim[3] = 0.0f;
+	for (float& a : m_anim) a = 0.0f;
 }
 
 void CMenuBillar::MostraPausa()
@@ -262,6 +269,7 @@ void CMenuBillar::MostraVictoria(int jugador)
 
 void CMenuBillar::TornaEnrere()
 {
+    if (m_normesDesDeModalitats) { m_normesDesDeModalitats = false; m_pantalla = PANT_MODALITATS; m_seleccio = 2; m_premut = -1; return; }
 	if (m_normesDesDePausa)
 	{
 		m_normesDesDePausa = false;
@@ -274,12 +282,18 @@ void CMenuBillar::TornaEnrere()
 		m_seleccio = m_ultimaOpcio;
 	}
 	m_premut = -1;
-	m_anim[0] = m_anim[1] = m_anim[2] = m_anim[3] = 0.0f;
+	for (float& a : m_anim) a = 0.0f;
 }
 
 CMenuBillar::Accio CMenuBillar::ExecutaBoto(int index)
 {
 	if (index < 0) return ACCIO_CAP;
+    if (m_pantalla == PANT_MODALITATS) {
+        if (index == 0) return ACCIO_JUGAR;
+        if (index == 1) return ACCIO_ESCACS;
+        if (index == 2) { m_normesEscacs = true; m_normesDesDeModalitats = true; m_pantalla = PANT_NORMES; m_seleccio = 0; return ACCIO_CAP; }
+        TornaEnrere(); return ACCIO_CAP;
+    }
 
 	if (m_pantalla == PANT_PAUSA)
 	{
@@ -292,16 +306,19 @@ CMenuBillar::Accio CMenuBillar::ExecutaBoto(int index)
 			return ACCIO_CAP;
 		}
 		if (index == 2) return ACCIO_REINICIAR;
-		return ACCIO_MENU;
+        if (index == 3) return ACCIO_MODALITATS;
+        if (index == 4) return ACCIO_MENU;
+        return ACCIO_SORTIR;
 	}
 	if (m_pantalla == PANT_VICTORIA)
 		return index == 0 ? ACCIO_REINICIAR : ACCIO_MENU;
 
 	if (m_pantalla == PANT_PRINCIPAL)
 	{
-		m_ultimaOpcio = index;
-		if (index == 0) return ACCIO_JUGAR;
-		if (index == 1) m_pantalla = PANT_NORMES;
+		if (index == 4) return ACCIO_SORTIR;
+        m_ultimaOpcio = index;
+		if (index == 0) { m_pantalla = PANT_MODALITATS; m_seleccio = 0; m_premut = -1; for(float& v : m_anim) v=0; return ACCIO_CAP; }
+		if (index == 1) { m_normesEscacs = false; m_pantalla = PANT_NORMES; }
 		else if (index == 2) m_pantalla = PANT_CONTROLS;
 		else m_pantalla = PANT_CREDITS;
 		m_seleccio = 0;
@@ -352,8 +369,7 @@ CMenuBillar::Accio CMenuBillar::RatoliSolta(int x, int y, int ampladaFinestra, i
 
 CMenuBillar::Accio CMenuBillar::TeclaPremuda(UINT nChar)
 {
-	const int n = m_pantalla == PANT_PRINCIPAL ? 4 :
-		m_pantalla == PANT_PAUSA ? 4 : m_pantalla == PANT_VICTORIA ? 2 : 1;
+	const int n = m_pantalla == PANT_PRINCIPAL ? 5 : m_pantalla == PANT_MODALITATS ? 4 : m_pantalla == PANT_PAUSA ? 6 : m_pantalla == PANT_VICTORIA ? 2 : 1;
 
 	switch (nChar)
 	{
@@ -371,7 +387,7 @@ CMenuBillar::Accio CMenuBillar::TeclaPremuda(UINT nChar)
 	case VK_ESCAPE:
 	case VK_BACK:
 		if (m_pantalla == PANT_PAUSA) return ACCIO_CONTINUAR;
-		if (m_pantalla == PANT_NORMES || m_pantalla == PANT_CONTROLS || m_pantalla == PANT_CREDITS) TornaEnrere();
+		if (m_pantalla == PANT_MODALITATS || m_pantalla == PANT_NORMES || m_pantalla == PANT_CONTROLS || m_pantalla == PANT_CREDITS) TornaEnrere();
 		break;
 	}
 	return ACCIO_CAP;
@@ -391,17 +407,17 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
 	d.nBotons = 0;
 	d.panell = Rect{ 0, 0, 0, 0 };
 	d.titolY = d.subtitolY = 0.0f;
-	for (int i = 0; i < 4; ++i) d.boto[i] = Rect{ 0, 0, 0, 0 };
+	for (int i = 0; i < 6; ++i) d.boto[i] = Rect{ 0, 0, 0, 0 };
 
-	if (m_pantalla == PANT_PRINCIPAL)
+	if (m_pantalla == PANT_PRINCIPAL || m_pantalla == PANT_MODALITATS)
 	{
-		const float ample = 435.0f * s;
-		d.panell = Rect{ (d.w - ample) * 0.5f, (d.h - 630.0f * s) * 0.5f, ample, 630.0f * s };
-		d.titolY = d.panell.y + 133.0f * s;
-		d.subtitolY = d.panell.y + 192.0f * s;
-		d.nBotons = 4;
-		for (int i = 0; i < 4; ++i)
-			d.boto[i] = Rect{ d.panell.x + 38.0f * s, d.panell.y + (253.0f + i * 75.0f) * s, ample - 76.0f * s, 58.0f * s };
+		const float ample = 510.0f * s;
+        d.panell = Rect{ (d.w-ample)*0.5f, (d.h-650.0f*s)*0.5f, ample, 650.0f*s };
+        d.titolY = d.panell.y + 125.0f*s;
+        d.subtitolY = d.panell.y + 185.0f*s;
+        d.nBotons = m_pantalla == PANT_PRINCIPAL ? 5 : 4;
+        for (int i=0;i<d.nBotons;++i)
+            d.boto[i] = Rect{d.panell.x+38.0f*s,d.panell.y+(225.0f+i*69.0f)*s,ample-76.0f*s,55.0f*s};
 	}
 	else
 	{
@@ -410,11 +426,11 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
 		const float contingut = controls ? N_CONTROLS * ALTURA_FILA_CONTROLS :
 			credits ? AlturaContingutCredits() : m_pantalla == PANT_NORMES ? 330.0f : 250.0f;
 		const float amplada = (controls ? 1000.0f : 760.0f) * s;
-		const float alcada = (CAPCALERA_PANELL + contingut + PEU_PANELL) * s;
+		const float alcada = m_pantalla == PANT_PAUSA ? 610.0f*s : (CAPCALERA_PANELL + contingut + PEU_PANELL)*s;
 		d.panell = Rect{ (d.w - amplada) * 0.5f, (d.h - alcada) * 0.5f, amplada, alcada };
 		const bool pausa = m_pantalla == PANT_PAUSA;
 		const bool final = m_pantalla == PANT_VICTORIA;
-		d.nBotons = pausa ? 4 : final ? 2 : 1;
+		d.nBotons = pausa ? 6 : final ? 2 : 1;
 		const float ampladaBoto = (pausa || final ? 340.0f : 260.0f) * s;
 		for (int i = 0; i < d.nBotons; ++i)
 		{
@@ -450,7 +466,7 @@ void CMenuBillar::Dibuixa(int w, int h, const HUDInfo* hud)
 	Disseny d;
 	CalculaDisseny(w, h, d);
 
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 6; ++i)
 	{
 		const float objectiu = (i == m_seleccio && i < d.nBotons) ? 1.0f : 0.0f;
 		m_anim[i] += (objectiu - m_anim[i]) * (std::min)(1.0f, dt * 14.0f);
@@ -498,7 +514,7 @@ void CMenuBillar::Dibuixa(int w, int h, const HUDInfo* hud)
 		Pla(0.0f, 0.0f, d.w, d.h, vel);
 		switch (m_pantalla)
 		{
-		case PANT_PRINCIPAL: DibuixaPrincipal(d); break;
+		case PANT_MODALITATS: case PANT_PRINCIPAL: DibuixaPrincipal(d); break;
 		case PANT_NORMES: DibuixaNormes(d); break;
 		case PANT_CONTROLS: DibuixaControls(d); break;
 		case PANT_CREDITS: DibuixaCredits(d); break;
@@ -526,13 +542,13 @@ void CMenuBillar::DibuixaPrincipal(const Disseny& d)
 	const Rect& p = d.panell;
 	const float centreX = p.x + p.w * 0.5f;
 	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
-	DibuixaText(L"CLUB DE BILLAR", centreX, p.y + 45.0f * s, Px(18.0f, s), true, COLOR_DAURAT, 1);
+	DibuixaText(L"BILLIARDS ARENA", centreX, p.y + 45.0f * s, Px(18.0f, s), true, COLOR_DAURAT, 1);
 	Pla(p.x + 44.0f * s, p.y + 75.0f * s, p.w - 88.0f * s, 1.0f * s, COLOR_LINIA);
-	DibuixaText(TITOL_JOC, centreX + 2.0f * s, d.titolY + 3.0f * s, Px(71.0f, s), true, COLOR_OMBRA, 1);
-	DibuixaText(TITOL_JOC, centreX, d.titolY, Px(71.0f, s), true, COLOR_BLANC, 1);
+	DibuixaText((m_pantalla == PANT_MODALITATS ? L"JOCS" : TITOL_JOC), centreX + 2.0f * s, d.titolY + 3.0f * s, Px(71.0f, s), true, COLOR_OMBRA, 1);
+	DibuixaText((m_pantalla == PANT_MODALITATS ? L"JOCS" : TITOL_JOC), centreX, d.titolY, Px(71.0f, s), true, COLOR_BLANC, 1);
 	DibuixaText(SUBTITOL_JOC, centreX, d.subtitolY, Px(19.0f, s), true, COLOR_DAURAT, 1);
-	for (int i = 0; i < 4; ++i)
-		DibuixaBoto(d.boto[i], ETIQUETES_PRINCIPAL[i], m_anim[i], s);
+	for (int i = 0; i < d.nBotons; ++i)
+		DibuixaBoto(d.boto[i], m_pantalla == PANT_MODALITATS ? (i==0 ? L"BILLAR CLASSIC" : i==1 ? L"CHESS BILLIARDS" : i==2 ? L"NORMES ESCACS" : L"TORNAR") : ETIQUETES_PRINCIPAL[i], m_anim[i], s);
 	Pla(p.x + 44.0f * s, p.y + p.h - 50.0f * s, p.w - 88.0f * s, 1.0f * s, COLOR_LINIA);
 	DibuixaText(AJUDA_PRINCIPAL, centreX, p.y + p.h - 26.0f * s, Px(14.0f, s), false, COLOR_GRIS, 1);
 }
@@ -544,7 +560,18 @@ void CMenuBillar::DibuixaNormes(const Disseny& d)
 	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
 	DibuixaText(L"NORMES DEL JOC", d.w * 0.5f, p.y + 47.0f * s, Px(41.0f, s), true, COLOR_DAURAT, 1);
 	Pla(p.x + 42.0f * s, p.y + 87.0f * s, p.w - 84.0f * s, 2.0f * s, COLOR_LINIA);
-	const wchar_t* linies[] = {
+	const wchar_t* escacs[] = {
+    L"OBJECTIU: captura mes peces rivals que l'altre jugador.",
+    L"J1: ivori. J2: obsidiana. Set peces per equip.",
+    L"Cada captura rival suma un punt i permet repetir tir.",
+    L"Una peca propia embocada no dona punts.",
+    L"Falta: blanca embocada o sense contacte.",
+    L"En falta no puntues; rival amb blanca en ma i dos tirs.",
+    L"En acabar les 14 peces, guanya qui te mes punts.",
+    L"Si els punts coincideixen, es un empat.",
+    L"C: explorar sala. WASD: caminar. Fletxes: mirar."
+};
+const wchar_t* linies[] = {
 		L"OBJECTIU: emboca les boles del teu grup i la negra.",
 		L"Llises: 1-7. Ratllades: 9-15. Negra: 8.",
 		L"Si emboces una bola legal, continues tirant.",
@@ -556,7 +583,7 @@ void CMenuBillar::DibuixaNormes(const Disseny& d)
 		L"Negra prematura o amb falta: partida perduda."
 	};
 	for (int i = 0; i < 9; ++i)
-		DibuixaText(linies[i], p.x + 45.0f * s, p.y + (120.0f + i * 36.0f) * s, Px(20.0f, s), false, COLOR_BLANC, 0);
+		DibuixaText(m_normesEscacs ? escacs[i] : linies[i], p.x + 45.0f * s, p.y + (120.0f + i * 36.0f) * s, Px(20.0f, s), false, COLOR_BLANC, 0);
 	DibuixaBoto(d.boto[0], ETIQUETA_TORNAR, m_anim[0], s);
 }
 
@@ -566,7 +593,7 @@ void CMenuBillar::DibuixaPausa(const Disseny& d)
 	const Rect& p = d.panell;
 	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
 	DibuixaText(L"PARTIDA EN PAUSA", d.w * 0.5f, p.y + 53.0f * s, Px(37.0f, s), true, COLOR_DAURAT, 1);
-	for (int i = 0; i < 4; ++i) DibuixaBoto(d.boto[i], ETIQUETES_PAUSA[i], m_anim[i], s);
+	for (int i = 0; i < d.nBotons; ++i) DibuixaBoto(d.boto[i], ETIQUETES_PAUSA[i], m_anim[i], s);
 }
 
 void CMenuBillar::DibuixaVictoria(const Disseny& d)
@@ -576,10 +603,17 @@ void CMenuBillar::DibuixaVictoria(const Disseny& d)
 	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
 	DibuixaText(L"CAMPIONS DEL TAPET", d.w * 0.5f, p.y + 49.0f * s, Px(36.0f, s), true, COLOR_DAURAT, 1);
 	Pla(p.x + 75.0f * s, p.y + 81.0f * s, p.w - 150.0f * s, 2.0f * s, COLOR_LINIA);
-	const std::wstring text = L"VICTORIA DEL JUGADOR " + std::to_wstring(m_guanyador);
+	const std::wstring text = m_guanyador == 3 ? L"EMPAT" : L"VICTORIA DEL JUGADOR " + std::to_wstring(m_guanyador);
 	DibuixaText(text, d.w * 0.5f, p.y + 106.0f * s, Px(30.0f, s), true, COLOR_BLANC, 1);
 	DibuixaText(L"UNA PARTIDA PER RECORDAR", d.w * 0.5f, p.y + 145.0f * s, Px(17.0f, s), false, COLOR_DAURAT, 1);
 	for (int i = 0; i < 2; ++i) DibuixaBoto(d.boto[i], ETIQUETES_FINAL[i], m_anim[i], s);
+}
+
+bool CMenuBillar::BotoPausa(int x, int y, int w, int h) const
+{
+    Disseny d; CalculaDisseny(w,h,d);
+    const Rect r{d.w-132.0f*d.s, 16.0f*d.s, 116.0f*d.s, 42.0f*d.s};
+    return r.Conte((float)x,(float)y);
 }
 
 void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
@@ -596,12 +630,12 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 		const bool act = info.jugador == j;
 		const Rect r{ marge + (j - 1) * (ample + separacio), marge, ample, alt };
 		RectArrodonit(r, act ? actiu : COLOR_BARRA, act ? COLOR_DAURAT : voraFosca, 12.0f * s, act ? 2.0f * s : 1.0f * s);
-		DibuixaText(j == 1 ? L"JUGADOR 1" : L"JUGADOR 2", r.x + 20.0f * s, r.y + 23.0f * s, Px(20.0f, s), true, COLOR_BLANC, 0);
+		DibuixaText(info.escacs ? (j == 1 ? L"IVORI" : L"OBSIDIANA") : (j == 1 ? L"JUGADOR 1" : L"JUGADOR 2"), r.x + 20.0f * s, r.y + 23.0f * s, Px(20.0f, s), true, COLOR_BLANC, 0);
 		const int grup = j == 1 ? info.grup1 : info.grup2;
 		const int restants = j == 1 ? info.restants1 : info.restants2;
 		const wchar_t* grupText = grup == 1 ? L"LLISES" : grup == 2 ? L"RATLLADES" : L"SENSE ASSIGNAR";
-		DibuixaText(grupText, r.x + 20.0f * s, r.y + 52.0f * s, Px(16.0f, s), false, COLOR_GRIS, 0);
-		DibuixaText(std::to_wstring(restants) + L" / 7", r.x + r.w - 20.0f * s, r.y + 37.0f * s, Px(25.0f, s), true, act ? COLOR_DAURAT : COLOR_BLANC, 2);
+		DibuixaText(info.escacs ? L"CHESS BILLIARDS" : grupText, r.x + 20.0f * s, r.y + 52.0f * s, Px(16.0f, s), false, COLOR_GRIS, 0);
+		DibuixaText(info.escacs ? std::to_wstring(j == 1 ? info.punts1 : info.punts2) + L" PTS" : std::to_wstring(restants) + L" / 7", r.x + r.w - 20.0f * s, r.y + 37.0f * s, Px(25.0f, s), true, act ? COLOR_DAURAT : COLOR_BLANC, 2);
 		const float colors[7][4] = {
 			{ 0.95f, 0.75f, 0.12f, 1.0f }, { 0.12f, 0.40f, 0.83f, 1.0f },
 			{ 0.84f, 0.16f, 0.16f, 1.0f }, { 0.45f, 0.23f, 0.68f, 1.0f },
@@ -614,7 +648,7 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 		{
 			const int bola = primer + i;
 			const Rect cercle{ r.x + (20.0f + i * 30.0f) * s, r.y + 73.0f * s, 22.0f * s, 22.0f * s };
-			RectArrodonit(cercle, info.embocades[bola] ? apagada : colors[i], COLOR_DAURAT, 11.0f * s, 1.0f * s);
+			RectArrodonit(cercle, info.embocades[bola] ? apagada : (info.escacs ? (j==1 ? COLOR_BLANC : COLOR_PANELL) : colors[i]), COLOR_DAURAT, 11.0f * s, 1.0f * s);
 			DibuixaText(std::to_wstring(bola), cercle.x + cercle.w * 0.5f, cercle.y + cercle.h * 0.5f,
 				Px(13.0f, s), true, info.embocades[bola] ? COLOR_GRIS : COLOR_BLANC, 1);
 		}
@@ -646,7 +680,10 @@ void CMenuBillar::DibuixaHUDIntern(const Disseny& d, const HUDInfo& info)
 	const wchar_t* indicacio = info.tirsDisponibles > 1 ?
 		(info.blancaEnMa ? L"FALTA: 2 TIRS. MOU LA BLANCA A LA LINIA" : L"TENS 2 TIRS") :
 		(info.blancaEnMa ? L"BLANCA EN MA: ARROSSEGA SOBRE LA LINIA (I/K)" : L"ESC: PAUSA  ·  R: REINICIAR");
-	DibuixaText(indicacio, peu.x + 19.0f * s, yPeu + 43.0f * s, Px(13.0f, s), false, info.tirsDisponibles > 1 ? COLOR_DAURAT : COLOR_GRIS, 0);
+	DibuixaText(info.exploracio ? L"WASD: CAMINAR | FLETXES: GIRAR | C: SORTIR" : (info.escacs ? L"C: EXPLORAR SALA | ESC: PAUSA" : indicacio), peu.x + 19.0f*s, yPeu + 43.0f*s, Px(13.0f,s), false, COLOR_GRIS, 0);
+    const Rect pausa{d.w-132.0f*s,16.0f*s,116.0f*s,42.0f*s};
+    RectArrodonit(pausa,COLOR_PANELL,COLOR_DAURAT,8.0f*s,1.5f*s);
+    DibuixaText(L"II  PAUSA",pausa.x+pausa.w*0.5f,pausa.y+pausa.h*0.5f,Px(16.0f,s),true,COLOR_BLANC,1);
 }
 
 void CMenuBillar::DibuixaControls(const Disseny& d)

@@ -19,12 +19,15 @@
 class CMenuBillar
 {
 public:
-	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA };
-	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU };
+	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA, PANT_MODALITATS };
+	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU, ACCIO_ESCACS, ACCIO_MODALITATS, ACCIO_SORTIR };
 
 	struct HUDInfo
 	{
-		int jugador = 1;
+		bool escacs = false;
+        int punts1 = 0, punts2 = 0;
+        bool exploracio = false;
+        int jugador = 1;
 		int restants1 = 7;
 		int restants2 = 7;
 		int tirsDisponibles = 1;
@@ -54,6 +57,9 @@ public:
 
 	// ---- Estat ----
 	void     MostraPrincipal();
+    void MostraModalitats();
+    bool BotoPausa(int x, int y, int w, int h) const;
+    void ModeEscacs(bool actiu) { m_normesEscacs = actiu; }
 	void     MostraPausa();
 	void     MostraVictoria(int jugador);
 	Pantalla PantallaActual() const { return m_pantalla; }
@@ -71,7 +77,7 @@ private:
 		float s;				// Factor d'escala (1.0 = finestra de 1100x760)
 		float w, h;				// Mides de la finestra
 		int   nBotons;			// Botons visibles a la pantalla actual
-		Rect  boto[4];
+		Rect  boto[6];
 		Rect  panell;			// Panell de fons (Controls i Credits)
 		float titolY;			// Centre vertical del titol
 		float subtitolY;		// Centre vertical del subtitol
@@ -109,8 +115,10 @@ private:
 	int   m_premut = -1;				// Boto sobre el qual s'ha premut el ratoli
 	int   m_ultimaOpcio = 0;
 	bool  m_normesDesDePausa = false;
+    bool m_normesEscacs = false;
+    bool m_normesDesDeModalitats = false;
 	int   m_guanyador = 0;			// Opcio del menu principal d'on venim (per tornar-hi)
-	float m_anim[4] = { 0.0f, 0.0f, 0.0f, 0.0f };	// Animacio de ressaltat de cada boto (0..1)
+	float m_anim[6] = {};	// Animacio de ressaltat de cada boto (0..1)
 	ULONGLONG m_ultimTemps = 0;
 	int   m_ampladaAnt = 0;
 	int   m_alcadaAnt = 0;

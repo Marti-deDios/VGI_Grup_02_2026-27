@@ -212,6 +212,19 @@ public:
 	bool bolaBlancaActiva = true;
 	float tempsBolaBlancaFora = 0.0f;
 	ReglesDosJugadors partidaDosJugadors;
+    bool passeigEscacs = false;
+    glm::vec3 ullEscacs = glm::vec3(0.0f,-4.5f,0.0f);
+    float anglePasseig = 1.5707963f;
+    float pitchPasseig = 0.0f;
+
+	enum ModeJoc
+	{
+		MODE_CLASSIC = 0,
+		MODE_ESCACS = 1
+	};
+	ModeJoc modeJocActual = MODE_CLASSIC;
+	int pecesBlanquesCapturades = 0;
+	int pecesNegresCapturades = 0;
 
 	// Estat fisic de les 15 boles de color (index 0 = textura bola 1).
 	// Les posicions i velocitats es calculen en coordenades locals XY de la taula.

@@ -22,7 +22,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
 	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
 	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
-	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ);
+	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs);
 
 // Dibuixa Eixos Coordenades M?n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -247,6 +247,71 @@ static void UAB_Planta(GLuint sh, const glm::mat4& base, float x, float y)
     }
 }
 
+static void EscacsForma(GLuint sh,const glm::mat4& base,glm::vec3 pos,glm::vec3 escala,CColor c,int tipus) {
+    bool mat[5]={false,true,true,true,true};
+    SeleccionaColorMaterial(sh,c,mat);
+    glUniform1i(glGetUniformLocation(sh,"textur"),GL_FALSE);
+    glm::mat4 m=glm::scale(glm::translate(base,pos),escala);
+    glUniformMatrix4fv(glGetUniformLocation(sh,"modelMatrix"),1,GL_FALSE,&m[0][0]);
+    if(tipus==0) draw_TriEBO_Object(GLUT_CUBE); else draw_TriEBO_Object(GLU_SPHERE);
+}
+static void EscacsPeca(GLuint sh,const glm::mat4& base,int tipus,bool blanca) {
+    CColor c=blanca?CColor{0.91f,0.83f,0.65f,1}:CColor{0.12f,0.16f,0.23f,1};
+    CColor orC={0.78f,0.55f,0.18f,1};
+    EscacsForma(sh,base,glm::vec3(0,0,0.025f),glm::vec3(0.52f,0.52f,0.13f),c,1);
+    EscacsForma(sh,base,glm::vec3(0,0,0.052f),glm::vec3(0.43f,0.43f,0.045f),orC,1);
+    EscacsForma(sh,base,glm::vec3(0,0,0.13f),glm::vec3(0.30f,0.30f,0.45f),c,1);
+    float h=tipus==0?0.20f:0.24f;
+    EscacsForma(sh,base,glm::vec3(0,0,h),glm::vec3(0.36f,0.36f,0.08f),c,1);
+    if(tipus==2) {
+        EscacsForma(sh,base,glm::vec3(0,0,h+0.045f),glm::vec3(0.14f,0.14f,0.075f),c,0);
+        for(int i=-1;i<=1;i+=2)for(int j=-1;j<=1;j+=2) EscacsForma(sh,base,glm::vec3(i*0.052f,j*0.052f,h+0.10f),glm::vec3(0.045f,0.045f,0.05f),c,0);
+    } else if(tipus==3) {
+        EscacsForma(sh,base,glm::vec3(0.025f,0,h+0.065f),glm::vec3(0.37f,0.27f,0.37f),c,1);
+        EscacsForma(sh,base,glm::vec3(0.065f,0,h+0.035f),glm::vec3(0.24f,0.30f,0.16f),c,1);
+    } else {
+        EscacsForma(sh,base,glm::vec3(0,0,h+0.065f),glm::vec3(0.30f,0.30f,tipus==1?0.30f:0.40f),c,1);
+        if(tipus==5) { EscacsForma(sh,base,glm::vec3(0,0,h+0.17f),glm::vec3(0.035f,0.035f,0.11f),orC,0); EscacsForma(sh,base,glm::vec3(0,0,h+0.18f),glm::vec3(0.12f,0.035f,0.035f),orC,0); }
+        if(tipus==4) for(int k=0;k<5;++k) {float a=k*1.256637f; EscacsForma(sh,base,glm::vec3(0.065f*std::cos(a),0.065f*std::sin(a),h+0.13f),glm::vec3(0.14f),orC,1);}
+    }
+}
+static void EscacsSala(GLuint sh,const glm::mat4& b) {
+    static GLuint pedra=0, llibres=0;
+    if(!pedra) pedra=UAB_CarregaTextura("textures/escacs_marbre.jpg");
+    if(!llibres) llibres=UAB_CarregaTextura("textures/escacs_biblioteca.jpg");
+    auto cub=[&](float x,float y,float z,float a,float d,float h,float r,float g,float bl,bool l=false){UAB_Cub(sh,b,glm::vec3(x,y,z),glm::vec3(a,d,h),r,g,bl,l);};
+    cub(0,0,-2.65f,26,18,0.3f,0.15f,0.16f,0.20f);
+    UAB_Panell(sh,b,pedra,glm::vec3(-13,-9,-2.49f),glm::vec3(26,0,0),glm::vec3(0,18,0));
+    for(int s=-1;s<=1;s+=2){
+        cub(0,s*9,8,26,0.6f,21,0.09f,0.11f,0.16f);
+        cub(s*13,0,8,0.6f,18,21,0.09f,0.11f,0.16f);
+        for(int k=-2;k<=2;++k){float x=k*4.7f;
+            cub(x,s*8.35f,3.0f,0.65f,0.8f,11,0.24f,0.26f,0.31f);
+            cub(x,s*8.35f,-2.15f,1.2f,1.05f,0.65f,0.62f,0.43f,0.17f);
+            cub(x,s*8.35f,8.4f,1.15f,1.0f,0.6f,0.62f,0.43f,0.17f);
+            if(k<2){float a=x+0.7f; cub(a+1.65f,s*8.65f,0.8f,3.3f,0.40f,6.2f,0.22f,0.12f,0.08f);
+            UAB_Panell(sh,b,llibres,glm::vec3(s>0?a:a+3.3f,s*8.43f,-2.2f),glm::vec3(s>0?3.3f:-3.3f,0,0),glm::vec3(0,0,6.0f));}
+        }
+        for(int k=-1;k<=1;++k){float y=k*5.2f;
+            cub(s*12.5f,y,3,0.7f,0.7f,11,0.27f,0.28f,0.33f);
+            cub(s*12.1f,y,3,0.08f,0.15f,5.2f,0.98f,0.72f,0.30f,true);
+        }
+        cub(0,s*8.6f,10.0f,25,0.20f,0.12f,0.95f,0.69f,0.29f,true);
+        cub(s*12.6f,0,10.0f,0.20f,17,0.12f,0.95f,0.69f,0.29f,true);
+        cub(s*9.7f,0,-2.0f,2,2,1,0.12f,0.14f,0.2f);
+        glm::mat4 p=glm::scale(glm::translate(b,glm::vec3(s*9.7f,0,-1.5f)),glm::vec3(8));
+        EscacsPeca(sh,p,s>0?5:4,s>0);
+    }
+    cub(0,0,18.0f,26,18,0.4f,0.11f,0.13f,0.18f);
+    for(int k=-3;k<=3;++k) cub(k*3.4f,0,17.7f,0.12f,15,0.15f,0.88f,0.66f,0.35f,true);
+}
+static void EscacsTapet(GLuint sh,const glm::mat4& b,bool blender) {
+    float hx=blender?4.02f:4.45f,hy=blender?1.90f:2.05f;
+    for(int i=0;i<8;++i)for(int j=0;j<8;++j){
+        bool clar=(i+j)%2==0;
+        UAB_Cub(sh,b,glm::vec3(-hx+(i+0.5f)*hx/4,-hy+(j+0.5f)*hy/4,0.152f),glm::vec3(hx/4,hy/4,0.006f),clar?0.80f:0.12f,clar?0.73f:0.15f,clar?0.58f:0.22f);
+    }
+}
 static void DibuixaAulaUAB(GLuint sh, const glm::mat4& base)
 {
     static GLuint paviment=0, vidre=0, pissarra=0, placa=0, fusta=0, monitor=0, sostre=0;
@@ -366,7 +431,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -669,7 +734,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles,
 			posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca,
 			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives,
-			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca, taulaOBJ);
+			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca, taulaOBJ, modeEscacs);
 		break;
 	}
 
@@ -682,7 +747,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs)
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -703,7 +768,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		// Billar
 	case BILLAR:
 	{
-		DibuixaAulaUAB(sh_programID, MatriuTG);
+		if(modeEscacs) EscacsSala(sh_programID, MatriuTG); else DibuixaAulaUAB(sh_programID, MatriuTG);
 		// Restablim l'estat del shader despres del decorat lluminos.
 		CColor blancModel = { 1.0f, 1.0f, 1.0f, 1.0f };
 		bool materialModel[5] = { false, true, true, true, true };
@@ -913,7 +978,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 
 		bool materialBola[5] = { false, true, true, true, true };
 		float escalaBola = 0.55f;
-		float alturaTapetZ = 0.25f;
+		if(modeEscacs) EscacsTapet(sh_programID,MatriuTG,taulaOBJ!=nullptr); float alturaTapetZ = 0.25f;
 
 		// ACTIVAR TEXTURES PER A LES BOLES
 		glActiveTexture(GL_TEXTURE0);
@@ -959,9 +1024,15 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			int indiceBola = numBola - 1;
 			if (!bolesColorActives[indiceBola]) continue; // La bola ja ha entrat en una tronera.
 
-			CColor col;
-			col.r = 1.0f; col.g = 1.0f; col.b = 1.0f; col.a = 1.0f;
-			SeleccionaColorMaterial(sh_programID, col, materialBola);
+			if(modeEscacs) {
+                int tipus=(numBola<=7?numBola-1:numBola-9); if(tipus==6) tipus=0;
+                glm::mat4 p=glm::translate(MatriuTG,glm::vec3(posicioBolesColor[indiceBola].x,posicioBolesColor[indiceBola].y,0.15f-0.30f*enfonsamentTronera[numBola]));
+                p=glm::scale(p,glm::vec3(1.0f-0.80f*enfonsamentTronera[numBola]));
+                EscacsPeca(sh_programID,p,tipus,numBola<=7); continue;
+            }
+            CColor col;
+            col.r = 1.0f; col.g = 1.0f; col.b = 1.0f; col.a = 1.0f;
+            SeleccionaColorMaterial(sh_programID, col, materialBola);
 
 			glBindTexture(GL_TEXTURE_2D, texturesBoles[numBola]);
 

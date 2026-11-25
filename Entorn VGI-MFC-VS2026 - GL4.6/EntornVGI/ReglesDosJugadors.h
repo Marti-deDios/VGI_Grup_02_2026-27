@@ -13,6 +13,10 @@ public:
         *this = ReglesDosJugadors();
     }
 
+    void reiniciaEscacs() {
+        reinicia(); escacs_ = true; grup_[0]=1; grup_[1]=2; trencada_=false;
+    }
+    int puntsEscacs(int j) const { return punts_[j-1]; }
     bool potTirar() const
     {
         return !enCurs_ && guanyador_ == 0;
@@ -59,6 +63,23 @@ public:
     {
         if (!enCurs_) return Resultat::Cap;
         enCurs_ = false;
+        if (escacs_) {
+            const bool falta = embocadesTir_[0] || primerContacte_ == 0;
+            int captures = 0;
+            for(int b=1;b<=15;++b) if(embocadesTir_[b] && esDelGrup(b, 3-jugador_)) ++captures;
+            if(!falta) punts_[jugador_-1] += captures;
+            if(comptaRestants(1)+comptaRestants(2)==0) {
+                guanyador_ = punts_[0]==punts_[1] ? 3 : (punts_[0]>punts_[1] ? 1 : 2);
+                return Resultat::Victoria;
+            }
+            if(falta) {
+                motiuUltimaFalta_ = embocadesTir_[0] ? MotiuFalta::BlancaEmbocada : MotiuFalta::SenseContacte;
+                jugador_=3-jugador_; blancaEnMa_=true; tirsDisponibles_=2; return Resultat::Falta;
+            }
+            if(captures>0) return Resultat::Continua;
+            if(tirsDisponibles_>1) { --tirsDisponibles_; return Resultat::Continua; }
+            jugador_=3-jugador_; tirsDisponibles_=1; return Resultat::CanviTorn;
+        }
         const int jugadorAbans = jugador_;
         const int grupActual = grup_[jugadorAbans - 1];
         const int restantsAbans = comptaRestants(grupActual) + comptaEmbocadesAquestTir(grupActual);
@@ -167,6 +188,8 @@ private:
         return compte;
     }
 
+    bool escacs_ = false;
+    int punts_[2] = {};
     int jugador_ = 1;
     int tirsDisponibles_ = 1;
     MotiuFalta motiuUltimaFalta_ = MotiuFalta::Cap;

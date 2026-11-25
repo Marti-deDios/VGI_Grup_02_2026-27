@@ -1202,7 +1202,13 @@ void CEntornVGIView::OnPaint()
 			glUseProgram(shader_programID);
 			glUniformMatrix4fv(glGetUniformLocation(shader_programID, "viewMatrix"), 1, GL_FALSE, &ViewMatrix[0][0]);
 		}
-		else if (objecte == BILLAR && !modeCameraBillar)
+		else if (objecte == BILLAR && passeigEscacs && !MenuActiu()) {
+            glm::vec3 d(std::cos(anglePasseig)*std::cos(pitchPasseig),std::sin(anglePasseig)*std::cos(pitchPasseig),std::sin(pitchPasseig));
+            ViewMatrix=glm::lookAt(ullEscacs,ullEscacs+d,glm::vec3(0,0,1));
+            glUseProgram(shader_programID);
+            glUniformMatrix4fv(glGetUniformLocation(shader_programID,"viewMatrix"),1,GL_FALSE,&ViewMatrix[0][0]);
+        }
+        else if (objecte == BILLAR && !modeCameraBillar)
 		{
 			float posicioBlanca[3] = { posicioBolaBlancaX, posicioBolaBlancaY, 0.25f };
 			float centreTaula[3] = { 0.0f, 0.0f, 0.1f };
@@ -1223,6 +1229,8 @@ void CEntornVGIView::OnPaint()
 		else if (objecte == BILLAR)
 		{
 			CMenuBillar::HUDInfo hud;
+            hud.escacs = modeJocActual == MODE_ESCACS;
+            hud.punts1 = partidaDosJugadors.puntsEscacs(1); hud.punts2 = partidaDosJugadors.puntsEscacs(2); hud.exploracio = passeigEscacs;
 			hud.jugador = partidaDosJugadors.jugadorActual();
 			hud.grup1 = partidaDosJugadors.grupJugador(1);
 			hud.grup2 = partidaDosJugadors.grupJugador(2);
@@ -1365,7 +1373,7 @@ void CEntornVGIView::dibuixa_Escena()
 		angleTac, desplacamentTac,
 		(!MenuActiu() || m_pausa) && bolaBlancaActiva && (BolesAturadesBillar() || animantTir),
 		enfonsamentTronera,
-		!MenuActiu() && partidaDosJugadors.blancaEnMa(), ObTaulaBillar);
+		!MenuActiu() && partidaDosJugadors.blancaEnMa(), ObTaulaBillar, modeJocActual == MODE_ESCACS);
 }
 
 
@@ -1674,6 +1682,7 @@ void CEntornVGIView::double2CString(double varf)
 //    - nFlags: Flags d'interrupció activats.
 void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+    if (objecte == BILLAR && nChar == 'F') { OnVistaFullScreen(); return; }
 	if (MenuActiu())
 	{
 		if (nChar == 'F') OnVistaFullScreen();
@@ -1696,7 +1705,29 @@ void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	if (objecte == BILLAR)
 	{
-		if (nChar == '1')
+		if(modeJocActual == MODE_ESCACS && nChar == 'C') {
+            if(!BolesAturadesBillar() || animantTir || carregantTir || m_carregantEspai || partidaDosJugadors.tirEnCurs()) return;
+            passeigEscacs = !passeigEscacs;
+            modeCameraBillar = passeigEscacs;
+            m_tornarCameraTir=false; ratoliInicialitzat=false; m_ButoEAvall=false;
+            InvalidateRect(NULL,false); return;
+        }
+        if(passeigEscacs && nChar!='1' && nChar!='2') {
+            glm::vec3 f(std::cos(anglePasseig),std::sin(anglePasseig),0.0f);
+            glm::vec3 r(f.y,-f.x,0.0f);
+            glm::vec3 candidat=ullEscacs;
+            if(nChar=='W') candidat+=f*0.32f;
+            if(nChar=='S') candidat-=f*0.32f;
+            if(nChar=='A') candidat-=r*0.32f;
+            if(nChar=='D') candidat+=r*0.32f;
+            if(nChar==VK_LEFT) anglePasseig+=0.08f;
+            if(nChar==VK_RIGHT) anglePasseig-=0.08f;
+            if(nChar==VK_UP) pitchPasseig=(std::min)(0.8f,pitchPasseig+0.06f);
+            if(nChar==VK_DOWN) pitchPasseig=(std::max)(-0.8f,pitchPasseig-0.06f);
+            if(std::abs(candidat.x)<11.0f && std::abs(candidat.y)<7.0f && (std::abs(candidat.x)>5.7f || std::abs(candidat.y)>3.3f)) ullEscacs=candidat;
+            InvalidateRect(NULL,false); return;
+        }
+        if (nChar == '1')
 		{
 			OnCameraTir();
 			return;
@@ -3632,6 +3663,10 @@ void CEntornVGIView::Teclat_RobotMB(UINT nChar, UINT nRepCnt)
 // OnLButtonDown: Funció que es crida quan s'apreta el botó esquerra del mouse.
 void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 {
+    if (!MenuActiu() && objecte == BILLAR && m_menu.BotoPausa(point.x,point.y,w,h)) {
+        OnKeyDown(VK_ESCAPE,1,0);
+        return;
+    }
 	if (MenuActiu())
 	{
 		SetFocus();
@@ -4251,7 +4286,15 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	animantTir = false;
 	tirAplicat = false;
 	ratoliInicialitzat = false;
-	partidaDosJugadors.reinicia();
+	if(modeJocActual == MODE_ESCACS) {
+        partidaDosJugadors.reiniciaEscacs();
+        bolesColorActives[7] = false;
+        for(int i=0;i<7;++i) {
+            posicioBolesColor[i] = glm::vec2(1.0f + (i%2)*0.55f, (i/2-1.5f)*0.63f);
+            posicioBolesColor[i+8] = glm::vec2(2.35f + (i%2)*0.55f, (i/2-1.5f)*0.63f);
+        }
+    } else partidaDosJugadors.reinicia();
+    passeigEscacs=false;
 	MostraEstatPartida(_T("Nova partida"));
 }
 
@@ -7639,6 +7682,7 @@ void CEntornVGIView::OnObjecteBillar()
 }
 void CEntornVGIView::OnCameraTir()
 {
+    passeigEscacs=false;
 	m_cameraAct = CAM_TIR;
 	modeCameraBillar = false;
 	ratoliInicialitzat = false;
@@ -7648,6 +7692,7 @@ void CEntornVGIView::OnCameraTir()
 
 void CEntornVGIView::OnCameraSuperior()
 {
+    passeigEscacs=false;
 	m_cameraAct = CAM_SUPERIOR;
 	modeCameraBillar = false;
 	ratoliInicialitzat = false;
@@ -7678,10 +7723,13 @@ void CEntornVGIView::PreparaMenuInicial()
 	m_menu.MostraPrincipal();
 	m_enMenu = true;
 	m_pausa = false;
+    if (!fullscreen) OnVistaFullScreen();
+    SetFocus();
 }
 
 void CEntornVGIView::ComencaPartida()
 {
+    m_menu.ModeEscacs(modeJocActual == MODE_ESCACS);
 	m_enMenu = false;
 	m_pausa = false;
 	m_segonsPartida = 0.0f;
@@ -7704,6 +7752,7 @@ void CEntornVGIView::ContinuaPartida()
 
 void CEntornVGIView::TornaAlMenu()
 {
+    passeigEscacs=false; modeJocActual=MODE_CLASSIC; m_menu.ModeEscacs(false);
 	carregantTir = false;
 	m_arrossegantBlanca = false;
 	m_ButoEAvall = false;
@@ -7720,10 +7769,24 @@ void CEntornVGIView::ExecutaAccioMenu(CMenuBillar::Accio accio)
 {
 	switch (accio)
 	{
-	case CMenuBillar::ACCIO_JUGAR:
-	case CMenuBillar::ACCIO_REINICIAR: ComencaPartida(); break;
+	case CMenuBillar::ACCIO_JUGAR: modeJocActual = MODE_CLASSIC; ComencaPartida(); break;
+    case CMenuBillar::ACCIO_ESCACS: modeJocActual = MODE_ESCACS; ComencaPartida(); break;
+    case CMenuBillar::ACCIO_REINICIAR: ComencaPartida(); break;
 	case CMenuBillar::ACCIO_CONTINUAR: ContinuaPartida(); break;
-	case CMenuBillar::ACCIO_MENU: TornaAlMenu(); break;
+	case CMenuBillar::ACCIO_MODALITATS:
+        if (!m_pausa || MessageBox(_T("Vols abandonar aquesta partida?"), _T("Billiards Arena"), MB_YESNO | MB_ICONQUESTION) == IDYES) {
+            TornaAlMenu(); m_menu.MostraModalitats(); InvalidateRect(NULL,false);
+        }
+        break;
+    case CMenuBillar::ACCIO_MENU:
+        if (!m_pausa || MessageBox(_T("Vols tornar al menu principal?"), _T("Billiards Arena"), MB_YESNO | MB_ICONQUESTION) == IDYES) TornaAlMenu();
+        break;
+    case CMenuBillar::ACCIO_SORTIR:
+        if (MessageBox(_T("Vols sortir del joc?"), _T("Billiards Arena"), MB_YESNO | MB_ICONQUESTION) == IDYES) {
+            if(fullscreen) OnVistaFullScreen();
+            if(AfxGetMainWnd()) AfxGetMainWnd()->PostMessage(WM_CLOSE);
+        }
+        break;
 	default: break;
 	}
 }
