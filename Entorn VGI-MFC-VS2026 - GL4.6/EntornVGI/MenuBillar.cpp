@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <fstream>
 
 /* ------------------------------------------------------------------------- */
 /*   TEXTOS I COLORS DEL MENU  (aqui podeu canviar-ho tot sense tocar codi)  */
@@ -15,7 +16,7 @@ namespace
 	const wchar_t* const SUBTITOL_JOC = L"UNA TAULA. INFINITES POSSIBILITATS.";
 	const wchar_t* const AJUDA_PRINCIPAL = L"F: PANTALLA COMPLETA / FINESTRA";
 
-	const wchar_t* const ETIQUETES_PRINCIPAL[5] = { L"MODALITATS", L"NORMES DEL JOC", L"CONTROLS I AJUDA", L"CREDITS", L"SORTIR DEL JOC" };
+	const wchar_t* const ETIQUETES_PRINCIPAL[6] = { L"MODALITATS", L"NORMES DEL JOC", L"CONTROLS I AJUDA", L"CREDITS", L"EL MEU PERFIL", L"SORTIR DEL JOC" };
 	const wchar_t* const ETIQUETES_PAUSA[6] = { L"CONTINUAR", L"NORMES DEL JOC", L"REINICIAR PARTIDA", L"TORNAR A MODALITATS", L"MENU PRINCIPAL", L"SORTIR DEL JOC" };
 	const wchar_t* const ETIQUETES_FINAL[2] = { L"REVENJA", L"MENÚ PRINCIPAL" };
 	const wchar_t* const ETIQUETA_TORNAR = L"TORNAR";
@@ -249,6 +250,7 @@ void CMenuBillar::MostraPrincipal()
 	m_ultimaOpcio = 0;
 	m_premut = -1;
 	for (float& a : m_anim) a = 0.0f;
+	CarregaPerfils();
 }
 
 void CMenuBillar::MostraPausa()
@@ -315,12 +317,13 @@ CMenuBillar::Accio CMenuBillar::ExecutaBoto(int index)
 
 	if (m_pantalla == PANT_PRINCIPAL)
 	{
-		if (index == 4) return ACCIO_SORTIR;
-        m_ultimaOpcio = index;
-		if (index == 0) { m_pantalla = PANT_MODALITATS; m_seleccio = 0; m_premut = -1; for(float& v : m_anim) v=0; return ACCIO_CAP; }
+		if (index == 5) return ACCIO_SORTIR;
+		m_ultimaOpcio = index;
+		if (index == 0) { m_pantalla = PANT_MODALITATS; m_seleccio = 0; m_premut = -1; for (float& v : m_anim) v = 0.0f; return ACCIO_CAP; }
 		if (index == 1) { m_normesEscacs = false; m_pantalla = PANT_NORMES; }
 		else if (index == 2) m_pantalla = PANT_CONTROLS;
-		else m_pantalla = PANT_CREDITS;
+		else if (index == 3) m_pantalla = PANT_CREDITS;
+		else if (index == 4) m_pantalla = PANT_PERFIL;
 		m_seleccio = 0;
 		m_premut = -1;
 		for (float& v : m_anim) v = 0.0f;
@@ -407,7 +410,7 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
 	d.nBotons = 0;
 	d.panell = Rect{ 0, 0, 0, 0 };
 	d.titolY = d.subtitolY = 0.0f;
-	for (int i = 0; i < 6; ++i) d.boto[i] = Rect{ 0, 0, 0, 0 };
+	for (int i = 0; i < 7; ++i) d.boto[i] = Rect{ 0, 0, 0, 0 };
 
 	if (m_pantalla == PANT_PRINCIPAL || m_pantalla == PANT_MODALITATS)
 	{
@@ -415,9 +418,12 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
         d.panell = Rect{ (d.w-ample)*0.5f, (d.h-650.0f*s)*0.5f, ample, 650.0f*s };
         d.titolY = d.panell.y + 125.0f*s;
         d.subtitolY = d.panell.y + 185.0f*s;
-        d.nBotons = m_pantalla == PANT_PRINCIPAL ? 5 : 4;
-        for (int i=0;i<d.nBotons;++i)
-            d.boto[i] = Rect{d.panell.x+38.0f*s,d.panell.y+(225.0f+i*69.0f)*s,ample-76.0f*s,55.0f*s};
+		d.nBotons = m_pantalla == PANT_PRINCIPAL ? 6 : 4;
+		const float pasY = (m_pantalla == PANT_PRINCIPAL) ? 58.0f : 69.0f;
+		const float altBoto = (m_pantalla == PANT_PRINCIPAL) ? 47.0f : 55.0f;
+		const float iniciY = (m_pantalla == PANT_PRINCIPAL) ? 210.0f : 225.0f;
+		for (int i = 0; i < d.nBotons; ++i)
+			d.boto[i] = Rect{ d.panell.x + 38.0f * s, d.panell.y + (iniciY + i * pasY) * s, ample - 76.0f * s, altBoto * s };
 	}
 	else
 	{
@@ -437,6 +443,73 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
 			const float y = (pausa || final) ? d.panell.y + (136.0f + i * 68.0f) * s : d.panell.y + alcada - 82.0f * s;
 			d.boto[i] = Rect{ (d.w - ampladaBoto) * 0.5f, y, ampladaBoto, 54.0f * s };
 		}
+	}
+}
+
+namespace
+{
+	const wchar_t* const FITXER_PERFILS = L"perfils_billar.txt";
+
+	std::wstring FormatTempsMitja(int segonsTotals, int partidesJugades)
+	{
+		if (partidesJugades <= 0 || segonsTotals <= 0)
+			return L"00:00";
+		const int mitjana = segonsTotals / partidesJugades;
+		const int min = mitjana / 60;
+		const int seg = mitjana % 60;
+		wchar_t buf[32];
+		swprintf_s(buf, L"%02d:%02d", min, seg);
+		return std::wstring(buf);
+	}
+}
+
+const CMenuBillar::PerfilJugador& CMenuBillar::ObtePerfil(int indexJugador) const
+{
+	return (indexJugador == 1) ? m_perfils[1] : m_perfils[0];
+}
+
+void CMenuBillar::RegistraPartida(int indexJugador, int duradaSegons, bool guanyada)
+{
+	const int idx = (indexJugador == 1) ? 1 : 0;
+	if (duradaSegons < 0) duradaSegons = 0;
+	m_perfils[idx].partidesJugades += 1;
+	m_perfils[idx].segonsTotals += duradaSegons;
+	if (guanyada) m_perfils[idx].partidesGuanyades += 1;
+	DesaPerfils();
+}
+
+void CMenuBillar::DesaPerfils() const
+{
+	std::wofstream out(FITXER_PERFILS);
+	if (!out.is_open()) return;
+	for (int i = 0; i < 2; ++i)
+	{
+		out << m_perfils[i].nom << L"\n"
+			<< m_perfils[i].rutaFoto << L"\n"
+			<< m_perfils[i].partidesJugades << L"\n"
+			<< m_perfils[i].partidesGuanyades << L"\n"
+			<< m_perfils[i].segonsTotals << L"\n";
+	}
+}
+
+void CMenuBillar::CarregaPerfils()
+{
+	std::wifstream in(FITXER_PERFILS);
+	if (!in.is_open()) return;
+	for (int i = 0; i < 2; ++i)
+	{
+		std::wstring nom, ruta;
+		int jugades = 0, guanyades = 0, segons = 0;
+		if (!std::getline(in, nom)) break;
+		if (!std::getline(in, ruta)) break;
+		if (!(in >> jugades >> guanyades >> segons)) break;
+		std::wstring restant;
+		std::getline(in, restant);
+		if (!nom.empty()) m_perfils[i].nom = nom;
+		m_perfils[i].rutaFoto = ruta;
+		m_perfils[i].partidesJugades = (jugades > 0) ? jugades : 0;
+		m_perfils[i].partidesGuanyades = (guanyades > 0) ? guanyades : 0;
+		m_perfils[i].segonsTotals = (segons > 0) ? segons : 0;
 	}
 }
 
@@ -466,7 +539,7 @@ void CMenuBillar::Dibuixa(int w, int h, const HUDInfo* hud)
 	Disseny d;
 	CalculaDisseny(w, h, d);
 
-	for (int i = 0; i < 6; ++i)
+	for (int i = 0; i < 7; ++i)
 	{
 		const float objectiu = (i == m_seleccio && i < d.nBotons) ? 1.0f : 0.0f;
 		m_anim[i] += (objectiu - m_anim[i]) * (std::min)(1.0f, dt * 14.0f);
@@ -520,6 +593,7 @@ void CMenuBillar::Dibuixa(int w, int h, const HUDInfo* hud)
 		case PANT_CREDITS: DibuixaCredits(d); break;
 		case PANT_PAUSA: DibuixaPausa(d); break;
 		case PANT_VICTORIA: DibuixaVictoria(d); break;
+		case PANT_PERFIL: DibuixaPerfil(d); break;
 		}
 	}
 
@@ -607,6 +681,37 @@ void CMenuBillar::DibuixaVictoria(const Disseny& d)
 	DibuixaText(text, d.w * 0.5f, p.y + 106.0f * s, Px(30.0f, s), true, COLOR_BLANC, 1);
 	DibuixaText(L"UNA PARTIDA PER RECORDAR", d.w * 0.5f, p.y + 145.0f * s, Px(17.0f, s), false, COLOR_DAURAT, 1);
 	for (int i = 0; i < 2; ++i) DibuixaBoto(d.boto[i], ETIQUETES_FINAL[i], m_anim[i], s);
+}
+
+//dibuix perfil
+void CMenuBillar::DibuixaPerfil(const Disseny& d)
+{
+	const float s = d.s;
+	const Rect& p = d.panell;
+	const float centreX = p.x + p.w * 0.5f;
+	const PerfilJugador& prof = m_perfils[m_perfilActiu];
+
+	RectArrodonit(p, COLOR_PANELL, COLOR_VORA_PANELL, 20.0f * s, 2.0f * s);
+	DibuixaText(L"EL MEU PERFIL", centreX, p.y + 48.0f * s, Px(36.0f, s), true, COLOR_DAURAT, 1);
+	Pla(p.x + 44.0f * s, p.y + 82.0f * s, p.w - 88.0f * s, 1.0f * s, COLOR_LINIA);
+
+	// Marc provisional de la foto de perfil a l'esquerra
+	const Rect marcFoto = { p.x + 64.0f * s, p.y + 115.0f * s, 130.0f * s, 130.0f * s };
+	RectArrodonit(marcFoto, COLOR_BOTO, COLOR_VORA_BOTO, 12.0f * s, 2.0f * s);
+	DibuixaText(prof.rutaFoto.empty() ? L"SENSE FOTO" : L"FOTO OK",
+		marcFoto.x + marcFoto.w * 0.5f, marcFoto.y + marcFoto.h * 0.5f, Px(16.0f, s), true, COLOR_BLANC, 1);
+
+	// Estadístiques del jugador a la dreta
+	const float textX = p.x + 225.0f * s;
+	DibuixaText(prof.nom, textX, p.y + 125.0f * s, Px(26.0f, s), true, COLOR_DAURAT, 0);
+	DibuixaText(L"Partides jugades: " + std::to_wstring(prof.partidesJugades),
+		textX, p.y + 165.0f * s, Px(20.0f, s), false, COLOR_BLANC, 0);
+	DibuixaText(L"Partides guanyades: " + std::to_wstring(prof.partidesGuanyades),
+		textX, p.y + 198.0f * s, Px(20.0f, s), false, COLOR_BLANC, 0);
+	DibuixaText(L"Temps mitjà per partida: " + FormatTempsMitja(prof.segonsTotals, prof.partidesJugades),
+		textX, p.y + 231.0f * s, Px(20.0f, s), false, COLOR_BLANC, 0);
+
+	DibuixaBoto(d.boto[0], ETIQUETA_TORNAR, m_anim[0], s);
 }
 
 bool CMenuBillar::BotoPausa(int x, int y, int w, int h) const
