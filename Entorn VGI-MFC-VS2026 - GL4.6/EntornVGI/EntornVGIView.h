@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <random> // Generador aleatori per al primer break
+
 #include "MainFrm.h"
 
 // Entorn VGI : Constants de l'aplicació entorn VGI
@@ -213,19 +215,19 @@ public:
 	bool bolaBlancaActiva = true;
 	float tempsBolaBlancaFora = 0.0f;
 	ReglesDosJugadors partidaDosJugadors;
-    bool passeigEscacs = false;
-    glm::vec3 ullEscacs = glm::vec3(0.0f,-4.5f,0.0f);
-    float anglePasseig = 1.5707963f;
-    float pitchPasseig = 0.0f;
+	bool passeigEscacs = false;
+	glm::vec3 ullEscacs = glm::vec3(0.0f, -4.5f, 0.0f);
+	float anglePasseig = 1.5707963f;
+	float pitchPasseig = 0.0f;
 
 	enum ModeJoc
 	{
 		MODE_CLASSIC = 0,
 		MODE_ESCACS = 1,
-        MODE_FUTBOL = 2
+		MODE_FUTBOL = 2
 	};
 	ModeJoc modeJocActual = MODE_CLASSIC;
-    FutbolBillar futbol;
+	FutbolBillar futbol;
 	int pecesBlanquesCapturades = 0;
 	int pecesNegresCapturades = 0;
 
@@ -235,6 +237,14 @@ public:
 	glm::vec2 velocitatBolesColor[15];
 	glm::mat4 rotacioBolesColor[15];
 	bool bolesColorActives[15] = {};
+
+	// Variacio angular aleatoria nomes durant el primer break de la partida.
+	// Estat de contacte: 0 = separades, 1 = en contacte pendent d'impuls,
+	// 2 = variacio ja aplicada durant aquest contacte.
+	bool m_primerTirBreakPendent = true;
+	bool m_variacioAngularBreakActiva = false;
+	unsigned char m_estatContacteBreak[16][16] = {};
+	std::mt19937 m_generadorAngularBreak;
 
 	float angleTac = 0.0f;
 	// Velocitat inicial efectiva de la punta del tac (unitats de taula/s).
@@ -391,6 +401,9 @@ public:
 	void ReiniciaBolesBillar();					// Inicialitza les 16 boles i el rack
 	void ActualitzaFisicaBillar(float deltaTemps);
 	bool BolesAturadesBillar() const;
+	void ReiniciaEstatContactesBreak();
+	void FinalitzaPrimerTirBreak();
+	float GeneraAngleAleatoriBreak();
 	void ComencaTirBillar();
 	void PreparaMenuInicial();
 	void ComencaPartida();
@@ -443,9 +456,9 @@ public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnDestroy();
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
-    afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
-    void ActualitzaEspaiClassic(bool premut);
-    bool espaiClassicBloquejat = true;
+	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
+	void ActualitzaEspaiClassic(bool premut);
+	bool espaiClassicBloquejat = true;
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
