@@ -122,7 +122,7 @@ public:
         if (falta)
         {
             jugador_ = 3 - jugador_;
-            blancaEnMa_ = true;
+            blancaEnMa_ = embocadesTir_[0];
             tirsDisponibles_ = 2;
             return Resultat::Falta;
         }

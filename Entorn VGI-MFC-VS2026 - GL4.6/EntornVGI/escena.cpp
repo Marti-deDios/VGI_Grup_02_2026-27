@@ -22,7 +22,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
 	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
 	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
-	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs);
+	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs, const FutbolBillar* futbol);
 
 // Dibuixa Eixos Coordenades M?n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -479,6 +479,65 @@ static void EscacsTapet(GLuint sh,const glm::mat4& b,bool blender) {
         UAB_Cub(sh,b,glm::vec3(-hx+(i+0.5f)*hx/4,-hy+(j+0.5f)*hy/4,0.152f),glm::vec3(hx/4,hy/4,0.006f),clar?0.80f:0.12f,clar?0.73f:0.15f,clar?0.58f:0.22f);
     }
 }
+static void DibuixaClubClassicV2(GLuint sh, const glm::mat4& base)
+{
+    // VGI_ORBITAL_ARENA_V1: decorat independent de la taula i de la fisica.
+    static GLuint cartell=0, cosmos=0;
+    if(!cartell) cartell=UAB_CarregaTextura("textures/vgi_orbital_sign.png");
+    if(!cosmos) cosmos=UAB_CarregaTextura("textures/vgi_orbital_panorama.jpg");
+    auto cub = [&](float x,float y,float z,float a,float b,float c,float r,float g,float bl,bool llum=false) {
+        UAB_Cub(sh,base,glm::vec3(x,y,z),glm::vec3(a,b,c),r,g,bl,llum);
+    };
+    // Plataforma de competicio i paviment modular amb geometria real.
+    cub(0,0,-2.80f,30,23,0.50f,0.16f,0.20f,0.29f);
+    cub(0,0,-2.49f,14.6f,8.4f,0.10f,0.24f,0.30f,0.39f);
+    for(int s=-1;s<=1;s+=2) {
+        cub(0,s*4.25f,-2.42f,14.8f,0.07f,0.045f,0.18f,0.82f,1.0f,true);
+        cub(s*7.4f,0,-2.42f,0.07f,8.5f,0.045f,0.52f,0.40f,1.0f,true);
+    }
+    for(int i=-7;i<=7;++i) cub(i*1.95f,0,-2.54f,0.025f,22,0.025f,0.27f,0.34f,0.44f);
+    for(int i=-5;i<=5;++i) cub(0,i*2.0f,-2.53f,29,0.025f,0.025f,0.27f,0.34f,0.44f);
+    // Observatori orbital: finestres panoramiques, consoles i pilars.
+    for(int k=-1;k<=1;k+=2) {
+        const float s=static_cast<float>(k);
+        cub(0,s*11.0f,4.6f,29.8f,0.5f,14.0f,0.16f,0.20f,0.30f);
+        cub(s*14.8f,0,4.6f,0.5f,22,14.0f,0.16f,0.20f,0.30f);
+        // Cada cara es defineix des de l'esquerra de l'observador interior.
+        UAB_Panell(sh,base,cosmos,glm::vec3(-s*13.6f,s*10.70f,-1.75f),glm::vec3(s*27.2f,0,0),glm::vec3(0,0,8.6f));
+        UAB_Panell(sh,base,cosmos,glm::vec3(s*14.50f,s*10.2f,-1.75f),glm::vec3(0,-s*20.4f,0),glm::vec3(0,0,8.6f));
+        for(int i=-3;i<=3;++i) {
+            cub(i*4.2f,s*10.45f,2.7f,0.32f,0.65f,10.4f,0.30f,0.37f,0.48f);
+            cub(i*4.2f,s*10.08f,2.7f,0.065f,0.06f,9.6f,0.38f,0.66f,1.0f,true);
+        }
+        for(int i=-2;i<=2;++i) {
+            cub(s*14.27f,i*4.1f,2.7f,0.65f,0.32f,10.4f,0.30f,0.37f,0.48f);
+            cub(s*13.90f,i*4.1f,2.7f,0.06f,0.065f,9.6f,0.52f,0.40f,1.0f,true);
+        }
+        cub(0,s*10.30f,-1.95f,28.0f,0.9f,0.46f,0.31f,0.38f,0.49f);
+        cub(s*14.1f,0,-1.95f,0.9f,21.3f,0.46f,0.31f,0.38f,0.49f);
+        cub(0,s*10.0f,-1.68f,28.0f,0.06f,0.065f,0.18f,0.82f,1.0f,true);
+        cub(s*13.8f,0,-1.68f,0.06f,21.3f,0.065f,0.52f,0.40f,1.0f,true);
+        // Retol principal als dos extrems: mida 9 x 3.375, lluny del HUD.
+        cub(s*12.8f,0,0.70f,0.32f,9.4f,3.75f,0.045f,0.08f,0.14f);
+        UAB_Panell(sh,base,cartell,glm::vec3(s*12.60f,s*4.5f,-0.9875f),glm::vec3(0,-s*9.0f,0),glm::vec3(0,0,3.375f));
+        cub(s*12.57f,0,-1.12f,0.055f,9.25f,0.07f,0.30f,0.84f,1.0f,true);
+        cub(s*12.57f,0,2.52f,0.055f,9.25f,0.07f,0.52f,0.40f,1.0f,true);
+        // Retol lateral, orientat correctament a cadascuna de les parets.
+        cub(0,s*9.6f,0.60f,8.7f,0.28f,3.5f,0.045f,0.08f,0.14f);
+        UAB_Panell(sh,base,cartell,glm::vec3(-s*4.2f,s*9.42f,-0.975f),glm::vec3(s*8.4f,0,0),glm::vec3(0,0,3.15f));
+        // Grades i bancs integrats als laterals, sense envair la taula.
+        for(int i=-1;i<=1;i+=2) {
+            cub(i*8.4f,s*7.7f,-2.20f,4.4f,1.3f,0.55f,0.27f,0.33f,0.43f);
+            cub(i*8.4f,s*8.2f,-1.67f,4.4f,0.35f,0.85f,0.19f,0.24f,0.36f);
+            cub(i*8.4f,s*7.0f,-2.02f,4.2f,0.06f,0.07f,0.28f,0.77f,1.0f,true);
+        }
+        // Estructura superior oberta per no ocultar la camera zenital.
+        cub(0,s*9.8f,7.6f,29.0f,0.9f,0.40f,0.27f,0.34f,0.47f);
+        cub(0,s*9.4f,7.35f,28.0f,0.10f,0.07f,0.34f,0.79f,1.0f,true);
+        cub(s*13.8f,0,7.6f,0.9f,20.0f,0.40f,0.27f,0.34f,0.47f);
+    }
+}
+
 static void DibuixaAulaUAB(GLuint sh, const glm::mat4& base)
 
 {
@@ -707,7 +766,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs, const FutbolBillar* futbol)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -1010,7 +1069,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles,
 			posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca,
 			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives,
-			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca, taulaOBJ, modeEscacs);
+			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca, taulaOBJ, modeEscacs, futbol);
 		break;
 	}
 
@@ -1020,10 +1079,99 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 
 
 // dibuixa: Funci? que dibuixa objectes simples de la llibreria GLUT segons obj
+static void DibuixaEstadiFutbol(GLuint sh, const glm::mat4& base, const FutbolBillar& f)
+{
+    auto cub=[&](float x,float y,float z,float a,float b,float c,float r,float g,float bl,bool llum=false){
+        UAB_Cub(sh,base,glm::vec3(x,y,z),glm::vec3(a,b,c),r,g,bl,llum);
+    };
+    auto linia=[&](float x,float y,float a,float b){cub(x,y,0.153f,a,b,0.007f,0.88f,0.95f,0.91f);};
+    // Stadium: open roof, stepped stands, floodlights and illuminated entry arches.
+    cub(0,0,-2.80f,29,22,0.55f,0.08f,0.11f,0.19f);
+    cub(0,0,-2.47f,13,7.8f,0.12f,0.19f,0.25f,0.34f);
+    static GLuint cartell=0;
+    if(!cartell)cartell=UAB_CarregaTextura("textures/vgi_orbital_sign.png");
+    for(int s=-1;s<=1;s+=2){
+        for(int k=0;k<5;++k){
+            float y=s*(5.6f+k*0.9f),z=-2.1f+k*0.62f;
+            cub(0,y,z,21,0.91f,0.55f,0.13f,0.18f,0.27f);
+            for(int x=-9;x<=9;++x){
+                float r=s<0?0.08f:0.48f, b=s<0?0.55f:0.12f;
+                cub(x*0.99f,y,z+0.34f,0.77f,0.57f,0.16f,r,0.19f,b);
+                cub(x*0.99f,y+s*0.26f,z+0.55f,0.77f,0.10f,0.44f,r,0.19f,b);
+            }
+            cub(0,y-s*0.46f,z+0.28f,21,0.045f,0.045f,0.10f,0.62f,1,true);
+        }
+        cub(0,s*10.5f,2.4f,26,0.4f,10,0.08f,0.12f,0.20f);
+        cub(s*13.5f,0,2.4f,0.4f,21,10,0.09f,0.13f,0.22f);
+        cub(s*12.9f,0,2.2f,0.20f,8.8f,3.6f,0.025f,0.05f,0.10f);
+        UAB_Panell(sh,base,cartell,glm::vec3(s*12.77f,s*4.2f,0.625f),glm::vec3(0,-s*8.4f,0),glm::vec3(0,0,3.15f));
+        for(int k=-2;k<=2;++k){
+            cub(k*4.4f,s*9.9f,3.5f,0.20f,0.25f,6.2f,0.27f,0.37f,0.48f);
+            cub(k*4.4f,s*9.65f,6.2f,2.1f,0.42f,0.34f,0.73f,0.88f,1,true);
+        }
+    }
+    // New football-only table with two goal openings. Classic Blender is untouched.
+    cub(0,0,-0.43f,11.1f,5.7f,0.86f,0.075f,0.11f,0.18f);
+    for(int s=-1;s<=1;s+=2)for(int t=-1;t<=1;t+=2)
+        cub(s*3.95f,t*1.85f,-1.55f,0.7f,0.7f,1.8f,0.12f,0.17f,0.24f);
+    cub(0,0,0.04f,9.68f,4.68f,0.20f,0.035f,0.32f,0.14f);
+    for(int i=0;i<10;++i) cub(-4.84f+(i+0.5f)*0.968f,0,0.145f,0.968f,4.68f,0.009f,0.045f,i%2?0.37f:0.30f,0.15f);
+    linia(0,0,0.035f,4.55f);linia(0,2.25f,9.5f,0.028f);linia(0,-2.25f,9.5f,0.028f);
+    for(int s=-1;s<=1;s+=2){
+        linia(s*4.72f,0,0.03f,4.5f);linia(s*3.45f,0,0.026f,2.60f);
+        linia(s*4.085f,1.30f,1.27f,0.026f);linia(s*4.085f,-1.30f,1.27f,0.026f);
+        cub(0,s*2.47f,0.31f,10.5f,0.26f,0.38f,0.10f,0.15f,0.24f);
+        cub(0,s*2.60f,0.49f,10.5f,0.045f,0.045f,0.14f,0.75f,1,true);
+        for(int t=-1;t<=1;t+=2){
+            cub(s*4.97f,t*1.595f,0.31f,0.26f,1.49f,0.38f,0.10f,0.15f,0.24f);
+            cub(s*4.84f,t*0.85f,0.60f,0.08f,0.08f,0.90f,0.94f,0.96f,0.99f);
+            cub(s*5.50f,t*0.85f,0.60f,0.055f,0.055f,0.90f,0.72f,0.80f,0.88f);
+            cub(s*5.17f,t*0.85f,1.04f,0.70f,0.05f,0.05f,0.82f,0.90f,0.98f);
+            for(int k=0;k<5;++k)cub(s*(4.88f+k*0.15f),t*0.85f,0.60f,0.012f,0.012f,0.88f,0.54f,0.65f,0.73f);
+        }
+        cub(s*5.17f,0,0.04f,0.70f,1.72f,0.20f,0.075f,0.21f,0.13f);
+        cub(s*4.84f,0,1.04f,0.08f,1.78f,0.08f,0.95f,0.97f,1);
+        cub(s*5.50f,0,1.04f,0.05f,1.75f,0.05f,0.82f,0.90f,0.98f);
+        for(int i=0;i<=10;++i)cub(s*5.50f,-0.85f+i*0.17f,0.60f,0.014f,0.014f,0.88f,0.66f,0.76f,0.82f);
+        for(int i=0;i<=5;++i)cub(s*5.50f,0,0.18f+i*0.17f,0.014f,1.70f,0.014f,0.66f,0.76f,0.82f);
+    }
+    for(int i=0;i<48;++i){
+        float a=i*6.2831853f/48.f;
+        glm::mat4 m=glm::translate(base,glm::vec3(0.65f*std::cos(a),0.65f*std::sin(a),0.157f));
+        m=glm::rotate(m,a+1.5707963f,glm::vec3(0,0,1));
+        UAB_Cub(sh,m,glm::vec3(0),glm::vec3(0.09f,0.024f,0.008f),0.9f,0.97f,0.92f);
+    }
+    auto esfera=[&](float x,float y,float z,float escala,float r,float g,float b){
+        CColor color={r,g,b,1};bool mat[5]={false,true,true,true,true};
+        SeleccionaColorMaterial(sh,color,mat);
+        glUniform1i(glGetUniformLocation(sh,"textur"),GL_FALSE);
+        glm::mat4 m=glm::scale(glm::translate(base,glm::vec3(x,y,z)),glm::vec3(escala));
+        glUniformMatrix4fv(glGetUniformLocation(sh,"modelMatrix"),1,GL_FALSE,&m[0][0]);
+        draw_TriEBO_Object(GLU_SPHERE);
+    };
+    for(int i=0;i<11;++i){
+        const auto p=f.p[i];
+        if(i==0){esfera(p.x,p.y,0.32f,0.8f,0.96f,0.96f,0.96f);
+            // Small dark patches distinguish the football from the team balls.
+            for(int k=0;k<5;++k){float a=k*6.2831853f/5.f;esfera(p.x+0.114f*std::cos(a),p.y+0.114f*std::sin(a),0.419f,0.19f,0.035f,0.04f,0.05f);}
+            esfera(p.x,p.y,0.469f,0.19f,0.035f,0.04f,0.05f);
+        }else if(i<=5)esfera(p.x,p.y,0.32f,0.8f,0.08f,0.38f,0.92f);
+        else esfera(p.x,p.y,0.32f,0.8f,0.91f,0.10f,0.15f);
+    }
+    if(!f.moviment && f.esperaGol<=0 && !f.guanyador){
+        const auto p=f.p[f.seleccio];
+        for(int i=0;i<24;++i){float a=i*6.2831853f/24.f;cub(p.x+0.22f*std::cos(a),p.y+0.22f*std::sin(a),0.158f,0.047f,0.047f,0.015f,1,0.78f,0.19f,true);}
+        glm::mat4 m=glm::rotate(glm::translate(base,glm::vec3(p.x,p.y,0.32f)),f.angle,glm::vec3(0,0,1));
+        UAB_Cub(sh,m,glm::vec3(-0.82f-f.forca*0.45f,0,0),glm::vec3(1.25f,0.05f,0.05f),0.76f,0.52f,0.27f);
+        UAB_Cub(sh,m,glm::vec3(-1.59f-f.forca*0.45f,0,0),glm::vec3(0.30f,0.08f,0.08f),0.08f,0.11f,0.16f);
+        for(int i=0;i<12;++i)UAB_Cub(sh,m,glm::vec3(0.25f+i*0.14f,0,-0.16f),glm::vec3(0.055f,0.025f,0.008f),1,0.82f,0.2f,true);
+    }
+}
+
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs, const FutbolBillar* futbol)
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -1044,7 +1192,9 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		// Billar
 	case BILLAR:
 	{
-		if(modeEscacs) EscacsSala(sh_programID, MatriuTG); else DibuixaAulaUAB(sh_programID, MatriuTG);
+		if(futbol) { DibuixaEstadiFutbol(sh_programID, MatriuTG, *futbol); break; }
+        if(modeEscacs) EscacsSala(sh_programID, MatriuTG);
+        else DibuixaClubClassicV2(sh_programID, MatriuTG);
 
 		// Restablim l'estat del shader despres del decorat lluminos.
 
@@ -1360,7 +1510,34 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			CColor plataTac = { 0.65f, 0.68f, 0.68f, 1.0f };
 			bool materialTac[5] = { false, true, true, true, true };
 
-			SeleccionaColorMaterial(sh_programID, blancPunta, materialTac);
+			if (!modeEscacs)
+            {
+                // Eix local Z del cilindre convertit a -X del tac.
+                auto segment = [&](float inici, float llarg, float radi, CColor c) {
+                    SeleccionaColorMaterial(sh_programID,c,materialTac);
+                    glm::mat4 m = glm::translate(baseTac,vec3(-inici-desplacamentTac,0.0f,0.10f));
+                    m=glm::rotate(m,radians(-90.0f),vec3(0,1,0));
+                    m=glm::scale(m,vec3(radi,radi,llarg));
+                    glUniformMatrix4fv(glGetUniformLocation(sh_programID,"modelMatrix"),1,GL_FALSE,&m[0][0]);
+                    draw_TriEBO_Object(GLUT_CYLINDER);
+                };
+                CColor guix={0.12f,0.36f,0.55f,1.0f};
+                CColor aur={0.72f,0.49f,0.20f,1.0f};
+                CColor noguera={0.43f,0.20f,0.075f,1.0f};
+                CColor maple={0.82f,0.64f,0.39f,1.0f};
+                segment(0.15f,0.035f,0.022f,guix);
+                segment(0.185f,0.065f,0.023f,blancPunta);
+                for (int k=0;k<10;++k)
+                    segment(0.25f+k*0.115f,0.115f,0.024f+k*0.0012f,maple);
+                segment(1.40f,0.045f,0.039f,aur);
+                segment(1.445f,0.28f,0.040f,noguera);
+                segment(1.725f,0.38f,0.045f,gomaTac);
+                for (int k=0;k<8;++k) segment(1.74f+k*0.045f,0.009f,0.046f,noguera);
+                segment(2.105f,0.045f,0.047f,aur);
+                segment(2.15f,0.07f,0.046f,noguera);
+            }
+            else {
+                SeleccionaColorMaterial(sh_programID, blancPunta, materialTac);
 			ModelMatrix = glm::translate(baseTac, vec3(-0.18f - desplacamentTac, 0.0f, 0.12f));
 			ModelMatrix = glm::scale(ModelMatrix, vec3(0.06f, 0.045f, 0.045f));
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
@@ -1384,7 +1561,9 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrix[0][0]);
 			draw_TriEBO_Object(GLUT_CUBE);
 
-			CColor colorGuia = { 0.95f, 0.82f, 0.32f, 1.0f };
+			
+            }
+            CColor colorGuia = { 0.95f, 0.82f, 0.32f, 1.0f };
 			SeleccionaColorMaterial(sh_programID, colorGuia, materialTac);
 			ModelMatrix = glm::translate(baseTac, vec3(1.22f, 0.0f, -0.09f));
 			ModelMatrix = glm::scale(ModelMatrix, vec3(2.0f, 0.015f, 0.01f));
