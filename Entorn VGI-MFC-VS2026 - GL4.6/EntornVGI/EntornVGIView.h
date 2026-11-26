@@ -28,6 +28,7 @@
 #include "visualitzacio.h"
 #include "ReglesDosJugadors.h"
 #include "MenuBillar.h"
+#include "FutbolBillar.h"
 
 // Entorn VGI. QUATERNIONS: Include per a la definició del tipus GL_QUAT i crida a les funcions de quatern.
 //#include "quatern.h"
@@ -220,9 +221,11 @@ public:
 	enum ModeJoc
 	{
 		MODE_CLASSIC = 0,
-		MODE_ESCACS = 1
+		MODE_ESCACS = 1,
+        MODE_FUTBOL = 2
 	};
 	ModeJoc modeJocActual = MODE_CLASSIC;
+    FutbolBillar futbol;
 	int pecesBlanquesCapturades = 0;
 	int pecesNegresCapturades = 0;
 

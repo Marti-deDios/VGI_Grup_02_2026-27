@@ -20,11 +20,13 @@ class CMenuBillar
 {
 public:
 	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA, PANT_MODALITATS };
-	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU, ACCIO_ESCACS, ACCIO_MODALITATS, ACCIO_SORTIR };
+	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU, ACCIO_ESCACS, ACCIO_MODALITATS, ACCIO_SORTIR, ACCIO_FUTBOL };
 
 	struct HUDInfo
 	{
 		bool escacs = false;
+        bool futbol = false;
+        int jugadorFutbol=1, seleccioFutbol=1, golFutbol=0;
         int punts1 = 0, punts2 = 0;
         bool exploracio = false;
         int jugador = 1;
@@ -60,6 +62,7 @@ public:
     void MostraModalitats();
     bool BotoPausa(int x, int y, int w, int h) const;
     void ModeEscacs(bool actiu) { m_normesEscacs = actiu; }
+    void ModeFutbol(bool actiu) { m_normesFutbol = actiu; }
 	void     MostraPausa();
 	void     MostraVictoria(int jugador);
 	Pantalla PantallaActual() const { return m_pantalla; }
@@ -116,6 +119,7 @@ private:
 	int   m_ultimaOpcio = 0;
 	bool  m_normesDesDePausa = false;
     bool m_normesEscacs = false;
+    bool m_normesFutbol = false;
     bool m_normesDesDeModalitats = false;
 	int   m_guanyador = 0;			// Opcio del menu principal d'on venim (per tornar-hi)
 	float m_anim[6] = {};	// Animacio de ressaltat de cada boto (0..1)
