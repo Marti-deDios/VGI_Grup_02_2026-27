@@ -19,9 +19,16 @@
 class CMenuBillar
 {
 public:
-	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA, PANT_MODALITATS, PANT_SELECTOR_NORMES };
-	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU, ACCIO_ESCACS, ACCIO_MODALITATS, ACCIO_SORTIR, ACCIO_FUTBOL };
-
+	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA, PANT_MODALITATS, PANT_PERFIL, PANT_SELECTOR_NORMES };
+	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU, ACCIO_ESCACS, ACCIO_MODALITATS, ACCIO_SORTIR, ACCIO_FUTBOL};
+	struct PerfilJugador
+	{
+		std::wstring nom = L"Jugador";
+		std::wstring rutaFoto;
+		int partidesJugades = 0;
+		int partidesGuanyades = 0;
+		int segonsTotals = 0;
+	};
 	struct HUDInfo
 	{
 		bool escacs = false;
@@ -67,7 +74,21 @@ public:
 	void     MostraVictoria(int jugador);
 	Pantalla PantallaActual() const { return m_pantalla; }
 
+	//per al perfil d'usuari 
+	void RegistraPartida(int indexJugador, int duradaSegons, bool guanyada);
+	const PerfilJugador& ObtePerfil(int indexJugador) const;
+	void SeleccionaPerfil(int indexJugador) { if (indexJugador == 0 || indexJugador == 1) m_perfilActiu = indexJugador; }
+	int PerfilActiu() const { return m_perfilActiu; }
+	void CarregaPerfils();
+	void DesaPerfils() const;
+
+	
+
 private:
+	//per al perfil d'usuari
+	PerfilJugador m_perfils[2];
+	int m_perfilActiu = 0;
+
 	struct Rect
 	{
 		float x, y, w, h;
@@ -80,7 +101,7 @@ private:
 		float s;				// Factor d'escala (1.0 = finestra de 1100x760)
 		float w, h;				// Mides de la finestra
 		int   nBotons;			// Botons visibles a la pantalla actual
-		Rect  boto[6];
+		Rect  boto[7];
 		Rect  panell;			// Panell de fons (Controls i Credits)
 		float titolY;			// Centre vertical del titol
 		float subtitolY;		// Centre vertical del subtitol
@@ -101,6 +122,7 @@ private:
 	void DibuixaVictoria(const Disseny& d);
 	void DibuixaHUDIntern(const Disseny& d, const HUDInfo& hud);
 	void DibuixaCredits(const Disseny& d);
+	void DibuixaPerfil(const Disseny& d);
 	void DibuixaBoto(const Rect& r, const wchar_t* etiqueta, float anim, float s);
 
 	// Primitives 2D
@@ -122,7 +144,7 @@ private:
     bool m_normesFutbol = false;
     bool m_normesDesDeSelector = false;
 	int   m_guanyador = 0;			// Opcio del menu principal d'on venim (per tornar-hi)
-	float m_anim[6] = {};	// Animacio de ressaltat de cada boto (0..1)
+	float m_anim[7] = {};	// Animacio de ressaltat de cada boto (0..1)
 	ULONGLONG m_ultimTemps = 0;
 	int   m_ampladaAnt = 0;
 	int   m_alcadaAnt = 0;
