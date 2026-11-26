@@ -19,7 +19,7 @@
 class CMenuBillar
 {
 public:
-	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA, PANT_MODALITATS };
+	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA, PANT_MODALITATS, PANT_SELECTOR_NORMES };
 	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU, ACCIO_ESCACS, ACCIO_MODALITATS, ACCIO_SORTIR, ACCIO_FUTBOL };
 
 	struct HUDInfo
@@ -120,7 +120,7 @@ private:
 	bool  m_normesDesDePausa = false;
     bool m_normesEscacs = false;
     bool m_normesFutbol = false;
-    bool m_normesDesDeModalitats = false;
+    bool m_normesDesDeSelector = false;
 	int   m_guanyador = 0;			// Opcio del menu principal d'on venim (per tornar-hi)
 	float m_anim[6] = {};	// Animacio de ressaltat de cada boto (0..1)
 	ULONGLONG m_ultimTemps = 0;
