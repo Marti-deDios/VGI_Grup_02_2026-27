@@ -19,9 +19,16 @@
 class CMenuBillar
 {
 public:
-	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA, PANT_MODALITATS };
-	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU, ACCIO_ESCACS, ACCIO_MODALITATS, ACCIO_SORTIR };
-
+	enum Pantalla { PANT_PRINCIPAL, PANT_NORMES, PANT_CONTROLS, PANT_CREDITS, PANT_PAUSA, PANT_VICTORIA, PANT_MODALITATS, PANT_PERFIL };
+	enum Accio { ACCIO_CAP, ACCIO_JUGAR, ACCIO_CONTINUAR, ACCIO_REINICIAR, ACCIO_MENU, ACCIO_ESCACS, ACCIO_MODALITATS, ACCIO_SORTIR, ACCIO_FUTBOL};
+	struct PerfilJugador
+	{
+		std::wstring nom = L"Jugador";
+		std::wstring rutaFoto;
+		int partidesJugades = 0;
+		int partidesGuanyades = 0;
+		int segonsTotals = 0;
+	};
 	struct HUDInfo
 	{
 		bool escacs = false;

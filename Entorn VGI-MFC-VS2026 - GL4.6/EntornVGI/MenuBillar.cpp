@@ -320,10 +320,10 @@ CMenuBillar::Accio CMenuBillar::ExecutaBoto(int index)
 
 	if (m_pantalla == PANT_PRINCIPAL)
 	{
-		if (index == 4) return ACCIO_SORTIR;
-        m_ultimaOpcio = index;
-		if (index == 0) { m_pantalla = PANT_MODALITATS; m_seleccio = 0; m_premut = -1; for(float& v : m_anim) v=0; return ACCIO_CAP; }
-		if (index == 1) { m_normesEscacs = false; m_pantalla = PANT_NORMES; }
+		if (index == 5) return ACCIO_SORTIR;
+		m_ultimaOpcio = index;
+		if (index == 0) { m_pantalla = PANT_MODALITATS; m_seleccio = 0; m_premut = -1; for (float& v : m_anim) v = 0.0f; return ACCIO_CAP; }
+		if (index == 1) { m_normesFutbol = false; m_normesEscacs = false; m_pantalla = PANT_NORMES; }
 		else if (index == 2) m_pantalla = PANT_CONTROLS;
 		else if (index == 3) m_pantalla = PANT_CREDITS;
 		else if (index == 4) m_pantalla = PANT_PERFIL;
@@ -418,12 +418,24 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
 	if (m_pantalla == PANT_PRINCIPAL || m_pantalla == PANT_MODALITATS)
 	{
 		const float ample = 510.0f * s;
-        d.panell = Rect{ (d.w-ample)*0.5f, (d.h-650.0f*s)*0.5f, ample, 650.0f*s };
-        d.titolY = d.panell.y + 125.0f*s;
-        d.subtitolY = d.panell.y + 185.0f*s;
-        d.nBotons = m_pantalla == PANT_PRINCIPAL ? 5 : 4;
-        for (int i=0;i<d.nBotons;++i)
-            d.boto[i] = Rect{d.panell.x+38.0f*s,d.panell.y+(225.0f+i*69.0f)*s,ample-76.0f*s,55.0f*s};
+		d.panell = Rect{ (d.w - ample) * 0.5f, (d.h - 650.0f * s) * 0.5f, ample, 650.0f * s };
+		d.titolY = d.panell.y + 125.0f * s;
+		d.subtitolY = d.panell.y + 185.0f * s;
+		if (m_pantalla == PANT_PRINCIPAL)
+		{
+			d.nBotons = 6;
+			const float iniciY = 212.0f;
+			const float pasY = 58.0f;
+			const float altBoto = 47.0f;
+			for (int i = 0; i < d.nBotons; ++i)
+				d.boto[i] = Rect{ d.panell.x + 38.0f * s, d.panell.y + (iniciY + i * pasY) * s, ample - 76.0f * s, altBoto * s };
+		}
+		else
+		{
+			d.nBotons = 4;
+			for (int i = 0; i < d.nBotons; ++i)
+				d.boto[i] = Rect{ d.panell.x + 38.0f * s, d.panell.y + (225.0f + i * 69.0f) * s, ample - 76.0f * s, 55.0f * s };
+		}
 	}
 	else
 	{
@@ -432,7 +444,7 @@ void CMenuBillar::CalculaDisseny(int w, int h, Disseny& d) const
 		const float contingut = controls ? N_CONTROLS * ALTURA_FILA_CONTROLS :
 			credits ? AlturaContingutCredits() : m_pantalla == PANT_NORMES ? 330.0f : 250.0f;
 		const float amplada = (controls ? 1000.0f : 760.0f) * s;
-		const float alcada = m_pantalla == PANT_PAUSA ? 610.0f*s : (CAPCALERA_PANELL + contingut + PEU_PANELL)*s;
+		const float alcada = m_pantalla == PANT_PAUSA ? 610.0f * s : (CAPCALERA_PANELL + contingut + PEU_PANELL) * s;
 		d.panell = Rect{ (d.w - amplada) * 0.5f, (d.h - alcada) * 0.5f, amplada, alcada };
 		const bool pausa = m_pantalla == PANT_PAUSA;
 		const bool final = m_pantalla == PANT_VICTORIA;
