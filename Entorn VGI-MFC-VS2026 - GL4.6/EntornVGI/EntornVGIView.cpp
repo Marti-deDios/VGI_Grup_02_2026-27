@@ -1394,7 +1394,7 @@ void CEntornVGIView::dibuixa_Escena()
 		angleTac, desplacamentTac,
 		(!MenuActiu() || m_pausa) && bolaBlancaActiva && (BolesAturadesBillar() || animantTir),
 		enfonsamentTronera,
-		!MenuActiu() && partidaDosJugadors.blancaEnMa(), ObTaulaBillar, modeJocActual == MODE_ESCACS, modeJocActual == MODE_FUTBOL ? &futbol : nullptr);
+		!MenuActiu() && partidaDosJugadors.blancaEnMa(), ObTaulaBillar, modeJocActual == MODE_ESCACS, modeJocActual == MODE_FUTBOL ? &futbol : nullptr, m_futbolFitxaSeleccionada);
 }
 
 
@@ -1743,8 +1743,35 @@ void CEntornVGIView::ActualitzaEspaiClassic(bool premut)
 void CEntornVGIView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	if (objecte == BILLAR && modeJocActual == MODE_FUTBOL && !MenuActiu()) {
-		if (nChar == VK_ESCAPE) futbol.pausa();
-		else if (nChar != 'F') { if (nChar == '1' || nChar == '2') futbol.camera = nChar - '0'; InvalidateRect(NULL, false); return; }
+		if (nChar == VK_ESCAPE) { futbol.pausa(); }
+		else if (nChar == VK_LEFT || nChar == VK_RIGHT) {
+			// Ordenem les cinc fitxes del jugador actual d'esquerra a dreta (X creixent).
+			// La fletxa dreta avanca cap a la dreta i l'esquerra cap a l'esquerra.
+			if (futbol.disponible() && !futbol.ratoliCarrega) {
+				int ordre[5];
+				const int primera = (futbol.torn == 1) ? 1 : 6;
+				for (int i = 0; i < 5; ++i) ordre[i] = primera + i;
+				for (int i = 0; i < 4; ++i) {
+					for (int j = i + 1; j < 5; ++j) {
+						if (futbol.p[ordre[j]].x < futbol.p[ordre[i]].x) {
+							const int temporal = ordre[i]; ordre[i] = ordre[j]; ordre[j] = temporal;
+						}
+					}
+				}
+				int posicio = -1;
+				for (int i = 0; i < 5; ++i) if (ordre[i] == futbol.seleccio) posicio = i;
+				if (posicio < 0) posicio = (nChar == VK_RIGHT) ? -1 : 5;
+				posicio = (posicio + (nChar == VK_RIGHT ? 1 : 4)) % 5;
+				futbol.seleccio = ordre[posicio];
+				const auto& fitxa = futbol.p[futbol.seleccio];
+				futbol.angle = std::atan2(futbol.p[0].y - fitxa.y, futbol.p[0].x - fitxa.x);
+				m_futbolFitxaSeleccionada = true;
+			}
+			InvalidateRect(NULL, false);
+			return;
+		}
+		else if (nChar == '1' || nChar == '2') { futbol.camera = nChar - '0'; InvalidateRect(NULL, false); return; }
+		else if (nChar != 'F') { InvalidateRect(NULL, false); return; }
 	}
 	if (objecte == BILLAR && !MenuActiu() && modeJocActual == MODE_CLASSIC && nChar == VK_SPACE)
 	{
@@ -3742,7 +3769,14 @@ void CEntornVGIView::OnLButtonDown(UINT nFlags, CPoint point)
 	if (objecte == BILLAR && modeJocActual == MODE_FUTBOL && !MenuActiu()) {
 		SetFocus();
 		if (m_menu.BotoPausa(point.x, point.y, w, h)) { OnKeyDown(VK_ESCAPE, 1, 0);return; }
-		if (futbol.comencaRatoli()) { puntIniciCarrega = point; ultimPuntRatoli = point; ratoliInicialitzat = true; SetCapture(); InvalidateRect(NULL, false); }
+
+		// La fitxa activa nomes es canvia amb les fletxes del teclat.
+		// El ratoli es reserva per ajustar la direccio i carregar el tir.
+		// Un segon clic sobre el camp inicia l'arrossegament del tir, nomes si ja hi ha fitxa triada.
+		if (m_futbolFitxaSeleccionada && futbol.comencaRatoli()) {
+			puntIniciCarrega = point; ultimPuntRatoli = point; ratoliInicialitzat = true;
+			SetCapture(); InvalidateRect(NULL, false);
+		}
 		return;
 	}
 	if (!MenuActiu() && objecte == BILLAR && m_menu.BotoPausa(point.x, point.y, w, h)) {
@@ -3797,7 +3831,9 @@ void CEntornVGIView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (futbol.ratoliCarrega) {
 			const float dx = float(point.x - puntIniciCarrega.x), dy = float(point.y - puntIniciCarrega.y);
 			futbol.forcaRatoli((std::sqrt(dx * dx + dy * dy) - 5.f) / (std::max)(90.f, float(h) * 0.32f));
+			const bool movimentAbans = futbol.moviment;
 			if (futbol.acabaRatoli() & 8)SoCopTac();
+			if (!movimentAbans && futbol.moviment) m_futbolFitxaSeleccionada = false;
 			if (::GetCapture() == m_hWnd)ReleaseCapture();
 			ultimPuntRatoli = point; InvalidateRect(NULL, false);
 		} return;
@@ -3921,7 +3957,7 @@ void CEntornVGIView::OnMouseMove(UINT nFlags, CPoint point)
 			const float dx = float(point.x - puntIniciCarrega.x), dy = float(point.y - puntIniciCarrega.y);
 			futbol.forcaRatoli((std::sqrt(dx * dx + dy * dy) - 5.f) / (std::max)(90.f, float(h) * 0.32f));
 		}
-		else if (futbol.disponible()) futbol.angle -= float(point.x - ultimPuntRatoli.x) * 0.009f;
+		else if (m_futbolFitxaSeleccionada && futbol.disponible()) futbol.angle -= float(point.x - ultimPuntRatoli.x) * 0.009f;
 		ultimPuntRatoli = point;InvalidateRect(NULL, false);return;
 	}
 	if (objecte == BILLAR && m_arrossegantBlanca)
@@ -4988,7 +5024,11 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 			DWORD pid = 0; ::GetWindowThreadProcessId(::GetForegroundWindow(), &pid);
 			if (pid == ::GetCurrentProcessId()) {
 				auto premut = [](int tecla) {return (::GetAsyncKeyState(tecla) & 0x8000) != 0;};
-				int sons = futbol.actualitza(deltaTemps, premut(VK_SPACE), premut('A') || premut(VK_LEFT), premut('D') || premut(VK_RIGHT), premut('Q'), premut('E'), premut('R'));
+				const bool movimentAbans = futbol.moviment;
+				int sons = futbol.actualitza(deltaTemps, premut(VK_SPACE) && m_futbolFitxaSeleccionada, premut('A'), premut('D'), premut('Q'), premut('E'), premut('R'));
+				// Les fletxes mantenen la navegacio actual entre fitxes; A/D ajusten l'angle.
+				if (!movimentAbans && futbol.moviment) m_futbolFitxaSeleccionada = false;
+				if (futbol.disponible() && !futbol.ratoliCarrega) m_futbolFitxaSeleccionada = true;
 				if (sons & 1)SoXocBoles(); if (sons & 2)SoXocBanda(); if (sons & 4)SoBolaForat(); if (sons & 8)SoCopTac();
 				if (futbol.guanyador && futbol.esperaGol <= 0) { m_enMenu = true;m_pausa = false;m_menu.MostraVictoria(futbol.guanyador); }
 			}
@@ -8023,7 +8063,7 @@ void CEntornVGIView::ComencaPartida()
 {
 	m_menu.ModeEscacs(modeJocActual == MODE_ESCACS);
 	m_menu.ModeFutbol(modeJocActual == MODE_FUTBOL);
-	if (modeJocActual == MODE_FUTBOL) futbol.reinicia();
+	if (modeJocActual == MODE_FUTBOL) { futbol.reinicia(); m_futbolFitxaSeleccionada = true; }
 	m_enMenu = false;
 	m_pausa = false;
 	m_segonsPartida = 0.0f;
