@@ -228,6 +228,8 @@ public:
 	};
 	ModeJoc modeJocActual = MODE_CLASSIC;
 	FutbolBillar futbol;
+	// Controla si el taco del futbol s'ha de mostrar en el torn actual.
+	bool m_futbolFitxaSeleccionada = false;
 	int pecesBlanquesCapturades = 0;
 	int pecesNegresCapturades = 0;
 
