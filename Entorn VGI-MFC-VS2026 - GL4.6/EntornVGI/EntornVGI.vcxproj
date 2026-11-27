@@ -208,6 +208,8 @@
     <ClInclude Include="glut_geometry.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="MenuBillar.h" />
+    <ClInclude Include="SkinBolaBlanca.h" />
+    <ClInclude Include="SkinArmadillo.h" />
     <ClInclude Include="objLoader.h" />
     <ClInclude Include="OutputWnd.h" />
     <ClInclude Include="pch.h" />
@@ -230,6 +232,8 @@
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="material.cpp" />
     <ClCompile Include="MenuBillar.cpp" />
+    <ClCompile Include="SkinBolaBlanca.cpp" />
+    <ClCompile Include="SkinArmadillo.cpp" />
     <ClCompile Include="objLoader.cpp" />
     <ClCompile Include="OutputWnd.cpp" />
     <ClCompile Include="pch.cpp">

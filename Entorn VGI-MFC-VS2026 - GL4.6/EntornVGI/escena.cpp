@@ -22,7 +22,8 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG,
 	GLuint texturesBoles[16], float posicioBolaBlancaX, float posicioBolaBlancaY,
 	glm::mat4 rotacioBolaBlanca, bool bolaBlancaActiva,
 	const glm::vec2 posicioBolesColor[15], const glm::mat4 rotacioBolesColor[15],
-	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs);
+	const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs,
+	ControladorSkinBlanca* skinBlanca);
 
 // Dibuixa Eixos Coordenades M?n i Reixes, activant un shader propi.
 void dibuixa_Eixos(GLuint ax_programID, bool eix, GLuint axis_Id, CMask3D reixa, CPunt3D hreixa,
@@ -766,7 +767,8 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 	glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs,
+	ControladorSkinBlanca* skinBlanca)
 {
 	float altfar = 0;
 	GLint npunts = 0, nvertexs = 0;
@@ -1069,7 +1071,7 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 		dibuixa(sh_programID, objecte, MatriuTG, texturesBoles,
 			posicioBolaBlancaX, posicioBolaBlancaY, rotacioBolaBlanca,
 			bolaBlancaActiva, posicioBolesColor, rotacioBolesColor, bolesColorActives,
-			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca, taulaOBJ, modeEscacs);
+			angleTac, desplacamentTac, mostrarTac, enfonsamentTronera, mostrarLiniaBlanca, taulaOBJ, modeEscacs, skinBlanca);
 		break;
 	}
 
@@ -1082,7 +1084,8 @@ void dibuixa_EscenaGL(GLuint sh_programID, bool eix, GLuint axis_Id, CMask3D rei
 void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesBoles[16],
 	float posicioBolaBlancaX, float posicioBolaBlancaY, glm::mat4 rotacioBolaBlanca,
 	bool bolaBlancaActiva, const glm::vec2 posicioBolesColor[15],
-	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs)
+	const glm::mat4 rotacioBolesColor[15], const bool bolesColorActives[15], float angleTac, float desplacamentTac, bool mostrarTac, const float enfonsamentTronera[16], bool mostrarLiniaBlanca, COBJModel* taulaOBJ, bool modeEscacs,
+	ControladorSkinBlanca* skinBlanca)
 {
 	glm::mat4 NormalMatrix(1.0), ModelMatrix(1.0); // TransMatrix(1.0); // ScaleMatrix(1.0), RotMatrix(1.0);
 	GLdouble tras[3]; //Sierpinski Sponge
@@ -1331,6 +1334,21 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 		// 4. Definici de la Bola Blanca (Cue Ball)
 		if (bolaBlancaActiva)
 		{
+			// SKIN de la bola blanca: nomes decideix COM es dibuixa. La fisica (posicio, radi, collider) no es toca.
+			bool dibuixadaPerSkin = false;
+			if (skinBlanca != NULL)
+			{
+				ContextVisualBlanca ctxSkin;
+				ctxSkin.matriuBase = MatriuTG;
+				ctxSkin.centre = vec3(posicioBolaBlancaX, posicioBolaBlancaY, alturaTapetZ - 0.30f * enfonsamentTronera[0]);
+				ctxSkin.rotacioFisica = rotacioBolaBlanca;
+				ctxSkin.radi = 0.2f * escalaBola * (1.0f - 0.80f * enfonsamentTronera[0]);
+				ctxSkin.angleApuntat = angleTac;
+				ctxSkin.textura = texturesBoles[0];
+				dibuixadaPerSkin = skinBlanca->Dibuixa(sh_programID, ctxSkin);
+			}
+			if (!dibuixadaPerSkin)
+			{	// Reserva: la bola classica d'abans (sense skin)
 			CColor blanc;
 			blanc.r = 1.0f; blanc.g = 1.0f; blanc.b = 1.0f; blanc.a = 1.0f;
 			SeleccionaColorMaterial(sh_programID, blanc, materialBola);
@@ -1350,6 +1368,7 @@ void dibuixa(GLuint sh_programID, char obj, glm::mat4 MatriuTG, GLuint texturesB
 
 			glUniformMatrix4fv(glGetUniformLocation(sh_programID, "modelMatrix"), 1, GL_FALSE, &ModelMatrixBola[0][0]);
 			draw_TriEBO_Object(GLU_SPHERE);
+			}
 		}
 
 		// 5. Collocaci de les 15 boles de color

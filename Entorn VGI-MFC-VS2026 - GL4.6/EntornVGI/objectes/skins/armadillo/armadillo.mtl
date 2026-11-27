@@ -1,0 +1,81 @@
+# Materials de l'armadillo (Ka, Kd, Ks, Ns: el que llegeix el carregador del joc)
+
+newmtl Arm_Shell
+Ka 0.8000 0.7400 0.6200
+Kd 0.8000 0.7400 0.6200
+Ks 0.2000 0.2000 0.2000
+Ns 40.0
+d 1.0
+illum 2
+
+newmtl Arm_Band
+Ka 0.5200 0.4200 0.3200
+Kd 0.5200 0.4200 0.3200
+Ks 0.1500 0.1500 0.1500
+Ns 30.0
+d 1.0
+illum 2
+
+newmtl Arm_Belly
+Ka 0.8800 0.7000 0.6200
+Kd 0.8800 0.7000 0.6200
+Ks 0.0500 0.0500 0.0500
+Ns 10.0
+d 1.0
+illum 2
+
+newmtl Arm_Skin
+Ka 0.7400 0.6200 0.5500
+Kd 0.7400 0.6200 0.5500
+Ks 0.0500 0.0500 0.0500
+Ns 10.0
+d 1.0
+illum 2
+
+newmtl Arm_Head
+Ka 0.6200 0.5200 0.4000
+Kd 0.6200 0.5200 0.4000
+Ks 0.1500 0.1500 0.1500
+Ns 30.0
+d 1.0
+illum 2
+
+newmtl Arm_Nose
+Ka 0.7800 0.4500 0.4500
+Kd 0.7800 0.4500 0.4500
+Ks 0.2000 0.2000 0.2000
+Ns 40.0
+d 1.0
+illum 2
+
+newmtl Arm_Eye
+Ka 0.0200 0.0200 0.0200
+Kd 0.0200 0.0200 0.0200
+Ks 0.6000 0.6000 0.6000
+Ns 90.0
+d 1.0
+illum 2
+
+newmtl Arm_EarIn
+Ka 0.9300 0.6200 0.6000
+Kd 0.9300 0.6200 0.6000
+Ks 0.0500 0.0500 0.0500
+Ns 10.0
+d 1.0
+illum 2
+
+newmtl Arm_Leg
+Ka 0.6600 0.5200 0.4400
+Kd 0.6600 0.5200 0.4400
+Ks 0.0500 0.0500 0.0500
+Ns 10.0
+d 1.0
+illum 2
+
+newmtl Arm_Claw
+Ka 0.9000 0.8500 0.7400
+Kd 0.9000 0.8500 0.7400
+Ks 0.3000 0.3000 0.3000
+Ns 60.0
+d 1.0
+illum 2

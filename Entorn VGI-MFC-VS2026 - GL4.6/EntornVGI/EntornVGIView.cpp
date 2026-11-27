@@ -985,6 +985,7 @@ void CEntornVGIView::OnDestroy()
 	{
 		wglMakeCurrent(m_pDC->GetSafeHdc(), m_hRC);
 		m_menu.Allibera();
+		m_skinBlanca.Allibera();
 		delete ObTaulaBillar;
 		ObTaulaBillar = nullptr;
 		wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
@@ -1380,7 +1381,8 @@ void CEntornVGIView::dibuixa_Escena()
 		angleTac, desplacamentTac,
 		(!MenuActiu() || m_pausa) && bolaBlancaActiva && (BolesAturadesBillar() || animantTir),
 		enfonsamentTronera,
-		!MenuActiu() && partidaDosJugadors.blancaEnMa(), ObTaulaBillar, modeJocActual == MODE_ESCACS);
+		!MenuActiu() && partidaDosJugadors.blancaEnMa(), ObTaulaBillar, modeJocActual == MODE_ESCACS,
+		&m_skinBlanca);
 }
 
 
@@ -4294,6 +4296,7 @@ void CEntornVGIView::ReiniciaBolesBillar()
 	rotacioBolaBlanca = glm::mat4(1.0f);
 	bolaBlancaActiva = true;
 	tempsBolaBlancaFora = 0.0f;
+	m_skinBlanca.Reinicia();	// La skin torna a Idle
 
 	// Disposicio triangular exacta: esfera de radi 0.2 escalada per 0.55.
 	// Els centres de boles veines queden separats exactament un diametre.
@@ -4398,6 +4401,7 @@ void CEntornVGIView::RecolocaBolaBlancaBillar()
         velocitatBolaBlancaY = 0.0f;
         rotacioBolaBlanca = glm::mat4(1.0f);
         bolaBlancaActiva = true;
+        m_skinBlanca.Reinicia();	// La skin torna a Idle
         tempsBolaBlancaFora = 0.0f;
         velocitatTacPunta = 0.0f;
         return;
@@ -4840,6 +4844,8 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
             espaiClassicBloquejat = true;
             m_carregantEspai = false;
             if (::GetFocus() == m_hWnd) ::SetCursor(::LoadCursor(NULL, IDC_ARROW));
+			// L'armadillo continua en l'animacio d'espera al fons del menu.
+			m_skinBlanca.TickIdle((std::min)(0.1f, (GetTickCount64() - ultimTempsBillar) / 1000.0f));
 			ultimTempsBillar = GetTickCount64();
 			InvalidateRect(NULL, false);
 			return;
@@ -4995,6 +5001,17 @@ void CEntornVGIView::OnTimer(UINT_PTR nIDEvent)
 
 		if (!bolaBlancaActiva && !partidaDosJugadors.tirEnCurs() && BolesAturadesBillar())
 			RecolocaBolaBlancaBillar();
+
+		// --- SKIN DE LA BOLA BLANCA: l'estat visual es DERIVA dels flags existents (nomes lectura).
+		//     No s'escriu res a la fisica ni al gestor de torns.
+		{
+			IntencioSkinBlanca intencioSkin;
+			intencioSkin.blancaViva = bolaBlancaActiva;
+			intencioSkin.apuntant = carregantTir || m_carregantEspai;
+			intencioSkin.tirEnProces = animantTir && !tirAplicat;
+			intencioSkin.rodant = tirAplicat && partidaDosJugadors.tirEnCurs();
+			m_skinBlanca.Actualitza(intencioSkin, deltaTemps);
+		}
 
 		if (m_tornarCameraTir && !MenuActiu() && !animantTir &&
 			!partidaDosJugadors.tirEnCurs() && BolesAturadesBillar())
@@ -7806,6 +7823,9 @@ void CEntornVGIView::OnObjecteBillar()
 			OutputDebugStringA("No sha pogut carregar la taula Blender. Sutilitza la taula original.\\n");
 		}
 	}
+
+	// Skin de la bola blanca (Armadillo per defecte; si no es troben els OBJ, es fa servir la classica).
+	m_skinBlanca.Carrega();
 
 	wglMakeCurrent(m_pDC->GetSafeHdc(), NULL);
 

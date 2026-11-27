@@ -28,6 +28,7 @@
 #include "visualitzacio.h"
 #include "ReglesDosJugadors.h"
 #include "MenuBillar.h"
+#include "SkinBolaBlanca.h"
 
 // Entorn VGI. QUATERNIONS: Include per a la definició del tipus GL_QUAT i crida a les funcions de quatern.
 //#include "quatern.h"
@@ -174,6 +175,7 @@ public:
 	// Entorn VGI: Objecte OBJ:
 	COBJModel* ObOBJ;		// Variable d'objecte format OBJ (*.OBJ)
 	COBJModel* ObTaulaBillar = nullptr;
+	ControladorSkinBlanca m_skinBlanca;	// Skin visual de la bola blanca (Armadillo...). Nomes grafics.
 	CVAO vao_OBJ;			// Identificador VAO per a objecte OBJ
 
 	// Entorn VGI: OBJECTE --> Corbes Bezier, BSpline, Catmull-Rom i Loxodroma
